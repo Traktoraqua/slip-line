@@ -177,8 +177,40 @@ class ListBlock(Element):
 
 
 @dataclass
+class Cell:
+    """A (possibly merged) table cell, anchored at its top-left grid position.
+
+    Grid coordinates are inclusive: a plain cell has ``r0 == r1`` and
+    ``c0 == c1``.
+    """
+
+    r0: int
+    c0: int
+    r1: int
+    c1: int
+    lines: list[str]      # one entry per source text line within the cell
+    align: str = "l"
+
+    @property
+    def rowspan(self) -> int:
+        return self.r1 - self.r0 + 1
+
+    @property
+    def colspan(self) -> int:
+        return self.c1 - self.c0 + 1
+
+
+@dataclass
+class TableGrid:
+    nrows: int
+    ncols: int
+    cells: list[Cell]              # anchor cells only (merged cells once)
+    col_aligns: list[str]
+
+
+@dataclass
 class Table(Element):
-    grid: list  # rows of cells
+    grid: TableGrid
     caption: Optional[str] = None
 
 

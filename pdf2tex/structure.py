@@ -22,6 +22,7 @@ import statistics
 from collections import Counter
 
 from .lists import build_list_block, match_marker, take_list
+from .tables import detect_tables
 from .models import (
     Bold,
     DocMeta,
@@ -268,8 +269,8 @@ def build_document(
         if inlines:
             elements.append(Paragraph(inlines=inlines))
 
-    for page in pages:
-        rows = _rows_for_page(page)
+    def process_rows(rows: list[tuple[Line, bool]], page_number: int) -> None:
+        nonlocal lists
         i = 0
         while i < len(rows):
             if match_marker(rows[i][0].text):
@@ -282,13 +283,41 @@ def build_document(
                 while j < len(rows) and not match_marker(rows[j][0].text):
                     j += 1
                 for group in _segment_groups(rows[i:j], leading):
-                    emit_group(group, page.number)
+                    emit_group(group, page_number)
                 i = j
 
+    tables = 0
+    for page in pages:
+        tdicts = detect_tables(page)
+        consumed: set[int] = set()
+        for td in tdicts:
+            consumed |= td["consumed"]
+
+        items: list[tuple] = []  # (kind, payload, new_block, y)
+        for block in page.blocks:
+            for li, line in enumerate(block.lines):
+                if line.spans and id(line) not in consumed:
+                    items.append(("line", line, li == 0, line.bbox[1]))
+        for td in tdicts:
+            items.append(("table", td["table"], False, td["top_y"]))
+        items.sort(key=lambda it: it[3])
+
+        buf: list[tuple[Line, bool]] = []
+        for kind, payload, new_block, _ in items:
+            if kind == "line":
+                buf.append((payload, new_block))
+            else:
+                process_rows(buf, page.number)
+                buf = []
+                elements.append(payload)
+                tables += 1
+        process_rows(buf, page.number)
+
     log.info(
-        "Built document: %d element(s) (%d heading(s), %d list(s))",
+        "Built document: %d element(s) (%d heading(s), %d list(s), %d table(s))",
         len(elements),
         headings,
         lists,
+        tables,
     )
     return Document(meta=meta, elements=elements)

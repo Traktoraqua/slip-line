@@ -82,7 +82,12 @@ def convert(args: argparse.Namespace) -> str:
         with open(args.preamble, "r", encoding="utf-8") as fh:
             preamble_text = fh.read()
 
-    tex = render(document, no_title=args.no_title, preamble=preamble_text)
+    tex = render(
+        document,
+        no_title=args.no_title,
+        preamble=preamble_text,
+        booktabs=args.booktabs,
+    )
 
     todo_count = sum(isinstance(e, TodoPlaceholder) for e in document.elements)
     if todo_count:

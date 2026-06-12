@@ -84,7 +84,7 @@ def _render_inline(inline) -> str:
 _SECTION_CMDS = ["section", "subsection", "subsubsection", "paragraph"]
 
 
-def _render_element(element) -> str:
+def _render_element(element, booktabs: bool = False) -> str:
     if isinstance(element, Paragraph):
         return _wrap("".join(_render_inline(i) for i in element.inlines))
     if isinstance(element, Heading):
@@ -101,8 +101,7 @@ def _render_element(element) -> str:
     if isinstance(element, ListBlock):
         return _render_list(element)
     if isinstance(element, Table):
-        # Rendered in a later phase; emit nothing for now.
-        return ""
+        return _render_table(element, booktabs)
     return ""
 
 
@@ -127,7 +126,89 @@ def _render_list(lb: ListBlock, depth: int = 0) -> str:
     return "\n".join(out)
 
 
-def render(doc: Document, no_title: bool = False, preamble: str | None = None) -> str:
+def _cell_text(cell) -> str:
+    parts = [escape_text(line) for line in cell.lines]
+    if not parts:
+        return ""
+    if len(parts) == 1:
+        return parts[0]
+    return "\\makecell[" + cell.align + "]{" + " \\\\ ".join(parts) + "}"
+
+
+def _mc_spec(cell, col_aligns, booktabs: bool) -> str:
+    if booktabs:
+        return cell.align
+    left = "|" if cell.c0 == 0 else ""
+    return f"{left}{cell.align}|"
+
+
+def _render_table(table, booktabs: bool) -> str:
+    grid = table.grid
+    anchor = {(c.r0, c.c0): c for c in grid.cells}
+    comp = {}
+    for c in grid.cells:
+        for r in range(c.r0, c.r1 + 1):
+            for cc in range(c.c0, c.c1 + 1):
+                comp[(r, cc)] = c
+
+    if booktabs:
+        colspec = "".join(grid.col_aligns)
+    else:
+        colspec = "|" + "|".join(grid.col_aligns) + "|"
+
+    body_rows: list[str] = []
+    for r in range(grid.nrows):
+        entries: list[str] = []
+        c = 0
+        while c < grid.ncols:
+            cell = comp[(r, c)]
+            is_anchor = (r == cell.r0 and c == cell.c0)
+            if is_anchor:
+                content = _cell_text(cell)
+                if cell.rowspan > 1:
+                    content = f"\\multirow{{{cell.rowspan}}}{{*}}{{{content}}}"
+            else:
+                content = ""  # multirow continuation row
+            if cell.colspan > 1:
+                spec = _mc_spec(cell, grid.col_aligns, booktabs)
+                entries.append(f"\\multicolumn{{{cell.colspan}}}{{{spec}}}{{{content}}}")
+            else:
+                entries.append(content)
+            c += cell.colspan
+        row = " & ".join(entries) + " \\\\"
+        body_rows.append(row)
+
+    lines = [f"\\begin{{tabular}}{{{colspec}}}"]
+    if booktabs:
+        lines.append("\\toprule")
+        lines.append(body_rows[0])
+        if len(body_rows) > 1:
+            lines.append("\\midrule")
+            lines.extend(body_rows[1:])
+        lines.append("\\bottomrule")
+    else:
+        lines.append("\\hline")
+        for row in body_rows:
+            lines.append(row)
+            lines.append("\\hline")
+    lines.append("\\end{tabular}")
+    tabular = "\n".join(lines)
+
+    if table.caption:
+        return (
+            "\\begin{table}[h]\n\\centering\n"
+            + tabular
+            + f"\n\\caption{{{escape_text(table.caption)}}}\n\\end{{table}}"
+        )
+    return "\\begin{center}\n" + tabular + "\n\\end{center}"
+
+
+def render(
+    doc: Document,
+    no_title: bool = False,
+    preamble: str | None = None,
+    booktabs: bool = False,
+) -> str:
     body_parts: list[str] = []
 
     if not no_title and doc.meta.title:
@@ -137,7 +218,7 @@ def render(doc: Document, no_title: bool = False, preamble: str | None = None) -
         body_parts.append("\\maketitle")
 
     for element in doc.elements:
-        rendered = _render_element(element)
+        rendered = _render_element(element, booktabs=booktabs)
         if rendered:
             body_parts.append(rendered)
 

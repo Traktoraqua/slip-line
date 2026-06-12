@@ -13,7 +13,7 @@ The end-to-end pipeline is in place and produces a complete, **compilable**
 `.tex` document:
 
 ```
-PDF ─▶ extract ─▶ zones ─▶ structure ─▶ lists ─▶ emit ─▶ .tex
+PDF ─▶ extract ─▶ zones ─▶ structure ─▶ [lists | tables] ─▶ emit ─▶ .tex
 ```
 
 Implemented so far:
@@ -31,6 +31,10 @@ Implemented so far:
 - **`lists.py`** — bullet/numbered/lettered/roman marker detection, indent
   clustering into nesting levels (≤ 4) and continuation-line merging →
   nested `itemize`/`enumerate`.
+- **`tables.py`** — ruled-table detection: rule clustering, grid snapping,
+  span-to-cell assignment, merged-cell detection (`\multicolumn`/`\multirow`),
+  numeric-column right-alignment, and caption attachment; `--booktabs` switches
+  to `\toprule`/`\midrule`/`\bottomrule`.
 - **`charmap.py`** — escaping of LaTeX-reserved characters plus typographic
   substitution (curly quotes, en/em dashes, ellipsis, non-breaking spaces,
   soft-hyphen removal); UTF-8 Latin/Nordic letters (æøå) pass through.
@@ -38,7 +42,7 @@ Implemented so far:
   line wrapping, custom-preamble templating.
 - **`cli.py`** — argparse entry point (`pdf2tex input.pdf -o out.tex`).
 
-Later phases add tables and math — see `PLAN.md §5`.
+The remaining phase adds math (text + image equations) — see `PLAN.md §5`.
 
 ## Install
 
