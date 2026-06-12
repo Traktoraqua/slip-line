@@ -44,6 +44,7 @@ from .models import (
     Page,
     Paragraph,
     Text,
+    TodoPlaceholder,
 )
 
 log = logging.getLogger(__name__)
@@ -391,6 +392,7 @@ def build_document(
                 i = j
 
     tables = 0
+    todos = 0
     for page in pages:
         tdicts = detect_tables(page)
         consumed: set[int] = set()
@@ -409,26 +411,36 @@ def build_document(
             items.append(("line", line, new_block, line.bbox[1]))
         for td in tdicts:
             items.append(("table", td["table"], False, td["top_y"]))
+        for img in page.images:
+            todo = TodoPlaceholder(
+                reason=f"Equation (image), source p. {page.number}",
+                page=page.number,
+            )
+            items.append(("todo", todo, False, img.bbox[1]))
         items.sort(key=lambda it: it[3])
 
         buf: list[tuple[Line, bool]] = []
         for kind, payload, new_block, _ in items:
             if kind == "line":
                 buf.append((payload, new_block))
-            else:
-                process_rows(buf, page)
-                buf = []
-                elements.append(payload)
+                continue
+            process_rows(buf, page)
+            buf = []
+            elements.append(payload)
+            if kind == "table":
                 tables += 1
+            else:
+                todos += 1
         process_rows(buf, page)
 
     log.info(
         "Built document: %d element(s) "
-        "(%d heading(s), %d list(s), %d table(s), %d display math)",
+        "(%d heading(s), %d list(s), %d table(s), %d display math, %d todo)",
         len(elements),
         headings,
         lists,
         tables,
         maths,
+        todos,
     )
     return Document(meta=meta, elements=elements)

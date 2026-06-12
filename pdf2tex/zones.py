@@ -28,7 +28,8 @@ log = logging.getLogger(__name__)
 BAND_FRACTION = 0.08          # top/bottom band as a fraction of page height
 REPEAT_FRACTION = 0.60        # share of pages a header/footer must appear on
 CAPTION_ADJACENCY = 2.0       # caption within this many line heights of figure
-INLINE_IMAGE_FACTOR = 1.8     # image taller than this × line height ⇒ figure
+INLINE_IMAGE_FACTOR = 1.8     # inline equation image height, in line heights
+EQ_IMAGE_MAX_H = 4.0          # isolated equation image max height, in line heights
 
 _CAPTION_RE = re.compile(r"^(Figure|Fig\.?|Figur)\s+[\dA-Z][-.\d]*")
 _DIGITS_RE = re.compile(r"\d+")
@@ -100,19 +101,27 @@ def _is_page_number(line: Line, height: float) -> bool:
 # Figures
 # --------------------------------------------------------------------------- #
 def _classify_images(page: Page, line_h: float):
-    """Split image blocks into (figures, inline_candidates)."""
-    figures, inline = [], []
+    """Split image blocks into (figures, equation_candidates).
+
+    A small image overlapping a text line (inline math), or a short, not-too-
+    wide isolated image (a display equation rendered as a picture), is kept as
+    an equation-image candidate; everything else is a figure to drop.
+    """
+    figures, candidates = [], []
     for img in page.images:
+        iw = img.bbox[2] - img.bbox[0]
         ih = img.bbox[3] - img.bbox[1]
         overlaps_line = any(
             not (img.bbox[3] < ln.bbox[1] or img.bbox[1] > ln.bbox[3])
             for ln in page.lines
         )
-        if ih <= INLINE_IMAGE_FACTOR * line_h and overlaps_line:
-            inline.append(img)
+        inline_eq = overlaps_line and ih <= INLINE_IMAGE_FACTOR * line_h
+        display_eq = ih <= EQ_IMAGE_MAX_H * line_h and iw <= 0.9 * page.width
+        if inline_eq or display_eq:
+            candidates.append(img)
         else:
             figures.append(img)
-    return figures, inline
+    return figures, candidates
 
 
 def _caption_near_figure(line: Line, fig_bbox, line_h: float) -> bool:
@@ -135,9 +144,9 @@ def filter_zones(
     repeated = _repeated_band_keys(pages)
 
     for page in pages:
-        figures, inline = _classify_images(page, line_h)
+        figures, candidates = _classify_images(page, line_h)
         stats.figures += len(figures)
-        page.images = inline  # keep only equation-image candidates
+        page.images = candidates  # keep only equation-image candidates
 
         kept_blocks: list[Block] = []
         for block in page.blocks:

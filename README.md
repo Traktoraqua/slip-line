@@ -39,7 +39,11 @@ Implemented so far:
   math-span detection, sub/superscript reconstruction, inline `$…$` runs (with
   base-stealing) and isolated/numbered display equations (`equation`+`\label`
   or `\[ \]`), with `% CHECK` comments on low-confidence reconstructions
-  (`detect`).
+  (`detect`).  Image equations become `\todo[inline]{Equation (image),
+  source p. N}` placeholders.
+- **`debug.py`** — `--debug DIR` writes per-stage geometry JSON
+  (`extract.json`, `zones.json`), the element tree (`document.json`) and
+  annotated `page-N.png` images with colored boxes per element class.
 - **`charmap.py`** — escaping of LaTeX-reserved characters plus typographic
   substitution (curly quotes, en/em dashes, ellipsis, non-breaking spaces,
   soft-hyphen removal); UTF-8 Latin/Nordic letters (æøå) pass through.
@@ -47,8 +51,9 @@ Implemented so far:
   line wrapping, custom-preamble templating.
 - **`cli.py`** — argparse entry point (`pdf2tex input.pdf -o out.tex`).
 
-Remaining: image-equation `\todo` placeholders + `--debug` dumps (Phase 8) and
-the optional math-OCR fallback (Phase 9) — see `PLAN.md §5`.
+A run prints a warning summary (count of `\todo` placeholders and
+low-confidence math regions). The only remaining work is the optional math-OCR
+fallback (Phase 9) — see `PLAN.md §5`.
 
 ## Install
 

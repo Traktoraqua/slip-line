@@ -8,10 +8,10 @@ import logging
 import os
 import sys
 
-from . import __version__
+from . import __version__, debug
 from .emit import render
 from .extract import extract_document
-from .models import DocMeta, TodoPlaceholder
+from .models import DisplayMath, DocMeta, TodoPlaceholder
 from .structure import build_document
 from .zones import filter_zones
 
@@ -67,8 +67,17 @@ def _default_output(input_path: str) -> str:
 
 
 def convert(args: argparse.Namespace) -> str:
+    if args.debug:
+        debug.ensure_dir(args.debug)
+
     pages = extract_document(args.input, pages=args.pages)
+    if args.debug:
+        debug.dump_pages(args.debug, "extract", pages)
+
     pages, _ = filter_zones(pages, keep_captions=args.keep_captions)
+    if args.debug:
+        debug.dump_pages(args.debug, "zones", pages)
+
     meta = DocMeta(
         source=os.path.basename(args.input),
         date=datetime.date.today().isoformat(),
@@ -76,6 +85,9 @@ def convert(args: argparse.Namespace) -> str:
         lang=args.lang,
     )
     document = build_document(pages, meta, detect_title_flag=not args.no_title)
+    if args.debug:
+        debug.dump_document(args.debug, document)
+        debug.annotate_pages(args.debug, args.input, pages)
 
     preamble_text = None
     if args.preamble:
@@ -89,10 +101,28 @@ def convert(args: argparse.Namespace) -> str:
         booktabs=args.booktabs,
     )
 
+    _print_summary(args, document)
+    return tex
+
+
+def _print_summary(args: argparse.Namespace, document) -> None:
     todo_count = sum(isinstance(e, TodoPlaceholder) for e in document.elements)
+    lowconf = sum(
+        1
+        for e in document.elements
+        if isinstance(e, DisplayMath)
+        and e.confidence is not None
+        and e.confidence < 0.6
+    )
     if todo_count:
         log.warning("%d \\todo placeholder(s) emitted for manual review", todo_count)
-    return tex
+    if lowconf:
+        log.warning("%d low-confidence math region(s) flagged with %% CHECK", lowconf)
+    if not args.quiet:
+        print(
+            f"Summary: {todo_count} \\todo placeholder(s), "
+            f"{lowconf} low-confidence math region(s)."
+        )
 
 
 def main(argv: list[str] | None = None) -> int:
