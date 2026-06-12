@@ -13,7 +13,7 @@ The end-to-end pipeline is in place and produces a complete, **compilable**
 `.tex` document:
 
 ```
-PDF ─▶ extract ─▶ zones ─▶ structure ─▶ [lists | tables] ─▶ emit ─▶ .tex
+PDF ─▶ extract ─▶ zones ─▶ structure ─▶ [lists | tables | math] ─▶ emit ─▶ .tex
 ```
 
 Implemented so far:
@@ -35,6 +35,11 @@ Implemented so far:
   span-to-cell assignment, merged-cell detection (`\multicolumn`/`\multirow`),
   numeric-column right-alignment, and caption attachment; `--booktabs` switches
   to `\toprule`/`\midrule`/`\bottomrule`.
+- **`mathconv/`** — text-equation handling: Unicode→LaTeX map (`unicode_map`),
+  math-span detection, sub/superscript reconstruction, inline `$…$` runs (with
+  base-stealing) and isolated/numbered display equations (`equation`+`\label`
+  or `\[ \]`), with `% CHECK` comments on low-confidence reconstructions
+  (`detect`).
 - **`charmap.py`** — escaping of LaTeX-reserved characters plus typographic
   substitution (curly quotes, en/em dashes, ellipsis, non-breaking spaces,
   soft-hyphen removal); UTF-8 Latin/Nordic letters (æøå) pass through.
@@ -42,7 +47,8 @@ Implemented so far:
   line wrapping, custom-preamble templating.
 - **`cli.py`** — argparse entry point (`pdf2tex input.pdf -o out.tex`).
 
-The remaining phase adds math (text + image equations) — see `PLAN.md §5`.
+Remaining: image-equation `\todo` placeholders + `--debug` dumps (Phase 8) and
+the optional math-OCR fallback (Phase 9) — see `PLAN.md §5`.
 
 ## Install
 

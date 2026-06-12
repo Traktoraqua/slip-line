@@ -220,6 +220,7 @@ class DisplayMath(Element):
     number: Optional[str] = None
     label: Optional[str] = None
     confidence: Optional[float] = None
+    page: Optional[int] = None
 
 
 @dataclass

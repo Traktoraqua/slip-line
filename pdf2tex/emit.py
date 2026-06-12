@@ -94,8 +94,13 @@ def _render_element(element, booktabs: bool = False) -> str:
     if isinstance(element, DisplayMath):
         if element.number is not None or element.label:
             label = f"\\label{{{element.label}}}" if element.label else ""
-            return f"\\begin{{equation}}{label}\n{element.latex}\n\\end{{equation}}"
-        return f"\\[\n{element.latex}\n\\]"
+            out = f"\\begin{{equation}}{label}\n{element.latex}\n\\end{{equation}}"
+        else:
+            out = f"\\[\n{element.latex}\n\\]"
+        if element.confidence is not None and element.confidence < 0.6:
+            where = f", p. {element.page}" if element.page else ""
+            out += f"\n% CHECK: low-confidence math{where}"
+        return out
     if isinstance(element, TodoPlaceholder):
         return f"\\todo[inline]{{{escape_text(element.reason)}}}"
     if isinstance(element, ListBlock):

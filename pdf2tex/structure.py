@@ -22,6 +22,15 @@ import statistics
 from collections import Counter
 
 from .lists import build_list_block, match_marker, take_list
+from .mathconv.detect import (
+    build_display_math,
+    has_math_indicator,
+    is_equation_number,
+    is_math_span,
+    line_ref,
+    shift_class,
+    spans_to_latex,
+)
 from .tables import detect_tables
 from .models import (
     Bold,
@@ -29,6 +38,7 @@ from .models import (
     Document,
     Heading,
     Inline,
+    InlineMath,
     Italic,
     Line,
     Page,
@@ -93,34 +103,82 @@ def _first_alpha_lower(text: str) -> bool:
 
 
 def _build_inlines(lines: list[Line]) -> list[Inline]:
-    """Join a paragraph group's spans into styled inline runs.
+    """Join a paragraph group's spans into styled / math inline runs.
 
     Consecutive same-style spans merge; line breaks add a space unless the
-    previous line ends with a hyphen and the next begins lowercase, in which
-    case the hyphen is dropped (dehyphenation).
+    previous line ends with a hyphen and the next begins lowercase (which
+    dehyphenates).  Math-flagged spans form ``$…$`` runs; a leading
+    sub/superscript steals its base token from the preceding text run.
     """
-    segs: list[list[str]] = []  # [style, text]
+    segs: list[dict] = []  # {"kind": text|bold|italic|math, "text"|"items"}
     for li, line in enumerate(lines):
         spans = [s for s in line.spans if s.text]
         if not spans:
             continue
-        if segs:
+        ref_y, ref_size = line_ref(spans)
+        if segs and segs[-1]["kind"] in _STYLE_CTOR:
             prev = segs[-1]
-            if prev[1].rstrip().endswith("-") and _first_alpha_lower(spans[0].text):
-                prev[1] = prev[1].rstrip()[:-1]
-            elif not prev[1].endswith(" "):
-                prev[1] = prev[1] + " "
+            if prev["text"].rstrip().endswith("-") and _first_alpha_lower(spans[0].text):
+                prev["text"] = prev["text"].rstrip()[:-1]
+            elif not prev["text"].endswith(" "):
+                prev["text"] += " "
         for span in spans:
-            style = _classify_span(span)
-            if segs and segs[-1][0] == style:
-                segs[-1][1] += span.text
+            cls = shift_class(span, ref_y, ref_size)
+            if is_math_span(span) or cls != "normal":
+                if segs and segs[-1]["kind"] == "math":
+                    segs[-1]["items"].append((span, cls))
+                else:
+                    segs.append({"kind": "math", "items": [(span, cls)]})
             else:
-                segs.append([style, span.text])
+                style = _classify_span(span)
+                if segs and segs[-1]["kind"] == style:
+                    segs[-1]["text"] += span.text
+                else:
+                    segs.append({"kind": style, "text": span.text})
 
-    if segs:
-        segs[0][1] = segs[0][1].lstrip()
-        segs[-1][1] = segs[-1][1].rstrip()
-    return [_STYLE_CTOR[st](text=tx) for st, tx in segs if tx]
+    _steal_math_bases(segs)
+
+    inlines: list[Inline] = []
+    last = len(segs) - 1
+    for idx, seg in enumerate(segs):
+        if seg["kind"] == "math":
+            latex = seg.get("base", "") + spans_to_latex(seg["items"])
+            latex = latex.strip()
+            if latex:
+                inlines.append(InlineMath(latex=latex))
+        else:
+            text = seg["text"]
+            if idx == 0:
+                text = text.lstrip()
+            if idx == last:
+                text = text.rstrip()
+            if text:
+                inlines.append(_STYLE_CTOR[seg["kind"]](text=text))
+    return inlines
+
+
+def _steal_math_bases(segs: list[dict]) -> None:
+    """Move the base token of a sub/superscript into its math run.
+
+    A run like ``x`` (text) followed by a subscript ``i`` should render as
+    ``$x_{i}$``, not ``x$_{i}$`` (invalid).
+    """
+    import re as _re
+
+    for idx, seg in enumerate(segs):
+        if seg["kind"] != "math" or idx == 0:
+            continue
+        if seg["items"][0][1] == "normal":
+            continue  # run starts with a real math token, no base needed
+        prev = segs[idx - 1]
+        if prev["kind"] not in _STYLE_CTOR or not prev["text"]:
+            continue
+        m = _re.search(r"(\S+)$", prev["text"])
+        if not m:
+            continue
+        from .mathconv.unicode_map import convert_math
+        seg["base"] = convert_math(m.group(1))
+        prev["text"] = prev["text"][: m.start()]
 
 
 # --------------------------------------------------------------------------- #
@@ -234,6 +292,41 @@ def _segment_groups(
     return groups
 
 
+def _merge_equation_numbers(kept: list[list], page: Page) -> None:
+    """Fold a lone right-margin equation number into its sibling math line.
+
+    Equation numbers often sit in their own block on the same visual line as
+    the equation; merging lets display detection emit a numbered ``equation``.
+    """
+    remove: set[int] = set()
+    for idx, (line, _) in enumerate(kept):
+        if idx in remove or len(line.spans) != 1:
+            continue
+        if not is_equation_number(line.text) or line.bbox[0] <= page.width * 0.7:
+            continue
+        cy = (line.bbox[1] + line.bbox[3]) / 2.0
+        best, best_dx = None, None
+        for jdx, (other, _) in enumerate(kept):
+            if jdx == idx or jdx in remove:
+                continue
+            ocy = (other.bbox[1] + other.bbox[3]) / 2.0
+            if abs(ocy - cy) <= 6.0 and other.bbox[2] < line.bbox[0]:
+                if has_math_indicator(other.spans):
+                    dx = line.bbox[0] - other.bbox[2]
+                    if best is None or dx < best_dx:
+                        best, best_dx = jdx, dx
+        if best is not None:
+            other = kept[best][0]
+            kept[best][0] = Line(
+                spans=other.spans + line.spans,
+                bbox=(other.bbox[0], min(other.bbox[1], line.bbox[1]),
+                      line.bbox[2], max(other.bbox[3], line.bbox[3])),
+            )
+            remove.add(idx)
+    for idx in sorted(remove, reverse=True):
+        del kept[idx]
+
+
 def build_document(
     pages: list[Page],
     meta: DocMeta,
@@ -250,17 +343,28 @@ def build_document(
     elements: list = []
     headings = 0
     lists = 0
+    maths = 0
+    eq_index = 0
 
-    def emit_group(group: list[Line], page_number: int) -> None:
-        nonlocal headings
+    def emit_group(group: list[Line], page: Page) -> None:
+        nonlocal headings, maths, eq_index
         gtext = " ".join(ln.text.strip() for ln in group).strip()
         if not gtext:
             return
-        if title and page_number == 1 and gtext == title:
+        if title and page.number == 1 and gtext == title:
             return  # consumed as the title
+
+        dm = build_display_math(group, page, page.number, eq_index)
+        if dm is not None:
+            if dm.number is not None:
+                eq_index += 1
+            elements.append(dm)
+            maths += 1
+            return
+
         heading = _heading_from_group(group, body_size)
         if heading is not None:
-            if title and page_number == 1 and heading.text == title:
+            if title and page.number == 1 and heading.text == title:
                 return
             elements.append(heading)
             headings += 1
@@ -269,7 +373,7 @@ def build_document(
         if inlines:
             elements.append(Paragraph(inlines=inlines))
 
-    def process_rows(rows: list[tuple[Line, bool]], page_number: int) -> None:
+    def process_rows(rows: list[tuple[Line, bool]], page: Page) -> None:
         nonlocal lists
         i = 0
         while i < len(rows):
@@ -283,7 +387,7 @@ def build_document(
                 while j < len(rows) and not match_marker(rows[j][0].text):
                     j += 1
                 for group in _segment_groups(rows[i:j], leading):
-                    emit_group(group, page_number)
+                    emit_group(group, page)
                 i = j
 
     tables = 0
@@ -293,11 +397,16 @@ def build_document(
         for td in tdicts:
             consumed |= td["consumed"]
 
-        items: list[tuple] = []  # (kind, payload, new_block, y)
+        kept: list[list] = []  # [line, new_block]
         for block in page.blocks:
             for li, line in enumerate(block.lines):
                 if line.spans and id(line) not in consumed:
-                    items.append(("line", line, li == 0, line.bbox[1]))
+                    kept.append([line, li == 0])
+        _merge_equation_numbers(kept, page)
+
+        items: list[tuple] = []  # (kind, payload, new_block, y)
+        for line, new_block in kept:
+            items.append(("line", line, new_block, line.bbox[1]))
         for td in tdicts:
             items.append(("table", td["table"], False, td["top_y"]))
         items.sort(key=lambda it: it[3])
@@ -307,17 +416,19 @@ def build_document(
             if kind == "line":
                 buf.append((payload, new_block))
             else:
-                process_rows(buf, page.number)
+                process_rows(buf, page)
                 buf = []
                 elements.append(payload)
                 tables += 1
-        process_rows(buf, page.number)
+        process_rows(buf, page)
 
     log.info(
-        "Built document: %d element(s) (%d heading(s), %d list(s), %d table(s))",
+        "Built document: %d element(s) "
+        "(%d heading(s), %d list(s), %d table(s), %d display math)",
         len(elements),
         headings,
         lists,
         tables,
+        maths,
     )
     return Document(meta=meta, elements=elements)
