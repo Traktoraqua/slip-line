@@ -161,6 +161,7 @@ class Heading(Element):
     level: int
     number: Optional[str]
     text: str
+    starred: bool = False  # unnumbered → \section*-style
 
 
 @dataclass

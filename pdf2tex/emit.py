@@ -89,7 +89,8 @@ def _render_element(element) -> str:
         return _wrap("".join(_render_inline(i) for i in element.inlines))
     if isinstance(element, Heading):
         cmd = _SECTION_CMDS[min(element.level, len(_SECTION_CMDS)) - 1]
-        return f"\\{cmd}{{{escape_text(element.text)}}}"
+        star = "*" if element.starred else ""
+        return f"\\{cmd}{star}{{{escape_text(element.text)}}}"
     if isinstance(element, DisplayMath):
         if element.number is not None or element.label:
             label = f"\\label{{{element.label}}}" if element.label else ""

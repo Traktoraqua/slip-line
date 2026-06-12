@@ -24,15 +24,17 @@ Implemented so far:
 - **`zones.py`** — header/footer removal via multi-page digit-masked repeat
   analysis, page-number stripping, and figure/caption removal (kept with
   `--keep-captions`); small inline images preserved as equation candidates.
-- **`structure.py`** — naive paragraph assembly (one block → one paragraph,
-  intra-block line join with dehyphenation) and a title heuristic.
+- **`structure.py`** — body-font analysis; numbered headings
+  (`\section`…`\paragraph` by depth) and unnumbered bold standalone headings;
+  paragraph grouping with gap/indent breaks, dehyphenation, and bold/italic
+  inline runs; title heuristic.
 - **`charmap.py`** — escaping of LaTeX-reserved characters; UTF-8 Latin/Nordic
   letters pass through.
 - **`emit.py`** — full preamble, title/`\maketitle`, paragraph rendering,
   line wrapping, custom-preamble templating.
 - **`cli.py`** — argparse entry point (`pdf2tex input.pdf -o out.tex`).
 
-Later phases add headings, lists, tables and math — see `PLAN.md §5`.
+Later phases add lists, tables and math — see `PLAN.md §5`.
 
 ## Install
 
