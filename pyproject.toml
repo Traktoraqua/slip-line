@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf2tex"
+version = "0.1.0"
+description = "Rule-based PDF → LaTeX converter (CLI)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["pymupdf>=1.23"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+pix2tex = ["pix2tex", "pylatexenc"]
+surya = ["surya-ocr", "pylatexenc"]
+pix2text = ["pix2text", "pylatexenc"]
+
+[project.scripts]
+pdf2tex = "pdf2tex.cli:main"
+
+[tool.setuptools]
+packages = ["pdf2tex"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
