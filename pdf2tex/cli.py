@@ -13,6 +13,7 @@ from .emit import render
 from .extract import extract_document
 from .models import DocMeta, TodoPlaceholder
 from .structure import build_document
+from .zones import filter_zones
 
 log = logging.getLogger("pdf2tex")
 
@@ -67,6 +68,7 @@ def _default_output(input_path: str) -> str:
 
 def convert(args: argparse.Namespace) -> str:
     pages = extract_document(args.input, pages=args.pages)
+    pages, _ = filter_zones(pages, keep_captions=args.keep_captions)
     meta = DocMeta(
         source=os.path.basename(args.input),
         date=datetime.date.today().isoformat(),

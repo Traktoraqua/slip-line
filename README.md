@@ -7,13 +7,13 @@ no OCR and no LLM calls in the core pipeline.
 
 See [`PLAN.md`](PLAN.md) for the full design and roadmap.
 
-## Status — Phase 1 (skeleton)
+## Status — Phases 1–2
 
 The end-to-end pipeline is in place and produces a complete, **compilable**
 `.tex` document:
 
 ```
-PDF ─▶ extract ─▶ structure ─▶ emit ─▶ .tex
+PDF ─▶ extract ─▶ zones ─▶ structure ─▶ emit ─▶ .tex
 ```
 
 Implemented so far:
@@ -21,6 +21,9 @@ Implemented so far:
 - **`extract.py`** — text spans (font, size, flags, bbox, origin), vector rule
   segments and image-block bounding boxes via PyMuPDF; Unicode NFC
   normalisation, ligature expansion and zero-width stripping.
+- **`zones.py`** — header/footer removal via multi-page digit-masked repeat
+  analysis, page-number stripping, and figure/caption removal (kept with
+  `--keep-captions`); small inline images preserved as equation candidates.
 - **`structure.py`** — naive paragraph assembly (one block → one paragraph,
   intra-block line join with dehyphenation) and a title heuristic.
 - **`charmap.py`** — escaping of LaTeX-reserved characters; UTF-8 Latin/Nordic
@@ -29,8 +32,7 @@ Implemented so far:
   line wrapping, custom-preamble templating.
 - **`cli.py`** — argparse entry point (`pdf2tex input.pdf -o out.tex`).
 
-Later phases add zones (header/footer/figure removal), headings, lists,
-tables and math — see `PLAN.md §5`.
+Later phases add headings, lists, tables and math — see `PLAN.md §5`.
 
 ## Install
 
