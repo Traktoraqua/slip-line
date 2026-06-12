@@ -28,8 +28,9 @@ Implemented so far:
   (`\section`…`\paragraph` by depth) and unnumbered bold standalone headings;
   paragraph grouping with gap/indent breaks, dehyphenation, and bold/italic
   inline runs; title heuristic.
-- **`charmap.py`** — escaping of LaTeX-reserved characters; UTF-8 Latin/Nordic
-  letters pass through.
+- **`charmap.py`** — escaping of LaTeX-reserved characters plus typographic
+  substitution (curly quotes, en/em dashes, ellipsis, non-breaking spaces,
+  soft-hyphen removal); UTF-8 Latin/Nordic letters (æøå) pass through.
 - **`emit.py`** — full preamble, title/`\maketitle`, paragraph rendering,
   line wrapping, custom-preamble templating.
 - **`cli.py`** — argparse entry point (`pdf2tex input.pdf -o out.tex`).
