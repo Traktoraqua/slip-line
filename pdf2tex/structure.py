@@ -412,9 +412,15 @@ def build_document(
         for td in tdicts:
             items.append(("table", td["table"], False, td["top_y"]))
         for img in page.images:
+            inline = any(
+                not (img.bbox[3] < ln.bbox[1] or img.bbox[1] > ln.bbox[3])
+                for ln in page.lines
+            )
             todo = TodoPlaceholder(
                 reason=f"Equation (image), source p. {page.number}",
                 page=page.number,
+                bbox=tuple(img.bbox),
+                inline=inline,
             )
             items.append(("todo", todo, False, img.bbox[1]))
         items.sort(key=lambda it: it[3])

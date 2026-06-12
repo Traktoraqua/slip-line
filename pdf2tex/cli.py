@@ -85,6 +85,13 @@ def convert(args: argparse.Namespace) -> str:
         lang=args.lang,
     )
     document = build_document(pages, meta, detect_title_flag=not args.no_title)
+
+    ocr_stats = (0, 0)
+    if args.math_ocr:
+        from .mathconv import ocr
+        backend = ocr.get_backend(args.math_ocr)
+        ocr_stats = ocr.apply_ocr(document, backend, args.input, debug_dir=args.debug)
+
     if args.debug:
         debug.dump_document(args.debug, document)
         debug.annotate_pages(args.debug, args.input, pages)
@@ -101,11 +108,11 @@ def convert(args: argparse.Namespace) -> str:
         booktabs=args.booktabs,
     )
 
-    _print_summary(args, document)
+    _print_summary(args, document, ocr_stats)
     return tex
 
 
-def _print_summary(args: argparse.Namespace, document) -> None:
+def _print_summary(args: argparse.Namespace, document, ocr_stats=(0, 0)) -> None:
     todo_count = sum(isinstance(e, TodoPlaceholder) for e in document.elements)
     lowconf = sum(
         1
@@ -119,10 +126,13 @@ def _print_summary(args: argparse.Namespace, document) -> None:
     if lowconf:
         log.warning("%d low-confidence math region(s) flagged with %% CHECK", lowconf)
     if not args.quiet:
-        print(
+        summary = (
             f"Summary: {todo_count} \\todo placeholder(s), "
-            f"{lowconf} low-confidence math region(s)."
+            f"{lowconf} low-confidence math region(s)"
         )
+        if args.math_ocr:
+            summary += f", {ocr_stats[0]} OCR accepted, {ocr_stats[1]} OCR rejected"
+        print(summary + ".")
 
 
 def main(argv: list[str] | None = None) -> int:

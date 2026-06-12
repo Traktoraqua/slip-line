@@ -100,6 +100,8 @@ def _render_element(element, booktabs: bool = False) -> str:
         if element.confidence is not None and element.confidence < 0.6:
             where = f", p. {element.page}" if element.page else ""
             out += f"\n% CHECK: low-confidence math{where}"
+        if element.comment:
+            out += f"\n% {element.comment}"
         return out
     if isinstance(element, TodoPlaceholder):
         return f"\\todo[inline]{{{escape_text(element.reason)}}}"

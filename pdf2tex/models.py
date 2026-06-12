@@ -221,12 +221,15 @@ class DisplayMath(Element):
     label: Optional[str] = None
     confidence: Optional[float] = None
     page: Optional[int] = None
+    comment: Optional[str] = None  # e.g. an "OCR: verify" annotation
 
 
 @dataclass
 class TodoPlaceholder(Element):
     reason: str
     page: int
+    bbox: Optional[BBox] = None  # source image region, for the OCR fallback
+    inline: bool = False
 
 
 # --------------------------------------------------------------------------- #

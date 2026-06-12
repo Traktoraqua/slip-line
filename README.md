@@ -44,6 +44,11 @@ Implemented so far:
 - **`debug.py`** — `--debug DIR` writes per-stage geometry JSON
   (`extract.json`, `zones.json`), the element tree (`document.json`) and
   annotated `page-N.png` images with colored boxes per element class.
+- **`mathconv/ocr.py`** *(optional)* — `--math-ocr {pix2tex,surya,pix2text}`
+  renders each equation-image crop (300 dpi), runs the chosen lazy-imported
+  backend, sanity-validates the output (balanced braces/`\left`/`\right`,
+  length ratio, `pylatexenc` parse gate) and replaces the `\todo` with an
+  `% OCR: verify`-annotated equation; rejects fall back to the placeholder.
 - **`charmap.py`** — escaping of LaTeX-reserved characters plus typographic
   substitution (curly quotes, en/em dashes, ellipsis, non-breaking spaces,
   soft-hyphen removal); UTF-8 Latin/Nordic letters (æøå) pass through.
@@ -51,15 +56,17 @@ Implemented so far:
   line wrapping, custom-preamble templating.
 - **`cli.py`** — argparse entry point (`pdf2tex input.pdf -o out.tex`).
 
-A run prints a warning summary (count of `\todo` placeholders and
-low-confidence math regions). The only remaining work is the optional math-OCR
-fallback (Phase 9) — see `PLAN.md §5`.
+A run prints a warning summary (count of `\todo` placeholders, low-confidence
+math regions, and — with `--math-ocr` — OCR accepted/rejected counts). All nine
+plan phases are implemented; the core pipeline is fully offline and
+deterministic, with OCR as an opt-in extra.
 
 ## Install
 
 ```bash
-pip install -e .          # core
-pip install -e .[dev]     # + pytest
+pip install -e .            # core (deterministic, no ML)
+pip install -e .[dev]       # + pytest
+pip install -e .[pix2tex]   # optional math-OCR backend (or [surya] / [pix2text])
 ```
 
 ## Usage
