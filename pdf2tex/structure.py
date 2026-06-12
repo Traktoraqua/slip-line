@@ -21,8 +21,8 @@ import re
 import statistics
 from collections import Counter
 
+from .lists import build_list_block, match_marker, take_list
 from .models import (
-    Block,
     Bold,
     DocMeta,
     Document,
@@ -165,31 +165,6 @@ def _heading_from_group(group: list[Line], body_size: float) -> Heading | None:
 
 
 # --------------------------------------------------------------------------- #
-# Paragraph grouping
-# --------------------------------------------------------------------------- #
-def _split_groups(block: Block, leading: float) -> list[list[Line]]:
-    groups: list[list[Line]] = []
-    cur: list[Line] = []
-    cur_x = 0.0
-    for line in block.lines:
-        if not line.spans:
-            continue
-        x0, y0 = line.bbox[0], line.bbox[1]
-        if cur:
-            big_gap = (y0 - cur[-1].bbox[1]) > GAP_FACTOR * leading
-            indent = x0 > cur_x + INDENT_TOL
-            if big_gap or indent:
-                groups.append(cur)
-                cur = []
-        if not cur:
-            cur_x = x0
-        cur.append(line)
-    if cur:
-        groups.append(cur)
-    return groups
-
-
-# --------------------------------------------------------------------------- #
 # Title
 # --------------------------------------------------------------------------- #
 def _largest_span(pages: list[Page]):
@@ -220,6 +195,44 @@ def detect_title(pages: list[Page]) -> str | None:
 # --------------------------------------------------------------------------- #
 # Driver
 # --------------------------------------------------------------------------- #
+def _rows_for_page(page: Page) -> list[tuple[Line, bool]]:
+    """Flatten a page to ``(line, new_block)`` rows in reading order."""
+    rows: list[tuple[Line, bool]] = []
+    for block in page.blocks:
+        for li, line in enumerate(block.lines):
+            if line.spans:
+                rows.append((line, li == 0))
+    return rows
+
+
+def _segment_groups(
+    rows: list[tuple[Line, bool]], leading: float
+) -> list[list[Line]]:
+    """Split a non-list row segment into paragraph groups.
+
+    A new group starts on a block boundary, a vertical gap > 1.5 × leading, or
+    an indent increase — mirroring per-block grouping over a flat sequence.
+    """
+    groups: list[list[Line]] = []
+    cur: list[Line] = []
+    cur_x = 0.0
+    for line, new_block in rows:
+        x0, y0 = line.bbox[0], line.bbox[1]
+        if cur and (
+            new_block
+            or (y0 - cur[-1].bbox[1]) > GAP_FACTOR * leading
+            or x0 > cur_x + INDENT_TOL
+        ):
+            groups.append(cur)
+            cur = []
+        if not cur:
+            cur_x = x0
+        cur.append(line)
+    if cur:
+        groups.append(cur)
+    return groups
+
+
 def build_document(
     pages: list[Page],
     meta: DocMeta,
@@ -235,28 +248,47 @@ def build_document(
 
     elements: list = []
     headings = 0
+    lists = 0
+
+    def emit_group(group: list[Line], page_number: int) -> None:
+        nonlocal headings
+        gtext = " ".join(ln.text.strip() for ln in group).strip()
+        if not gtext:
+            return
+        if title and page_number == 1 and gtext == title:
+            return  # consumed as the title
+        heading = _heading_from_group(group, body_size)
+        if heading is not None:
+            if title and page_number == 1 and heading.text == title:
+                return
+            elements.append(heading)
+            headings += 1
+            return
+        inlines = _build_inlines(group)
+        if inlines:
+            elements.append(Paragraph(inlines=inlines))
+
     for page in pages:
-        for block in page.blocks:
-            for group in _split_groups(block, leading):
-                gtext = " ".join(ln.text.strip() for ln in group).strip()
-                if not gtext:
-                    continue
-                if title and page.number == 1 and gtext == title:
-                    continue  # consumed as the title
-
-                heading = _heading_from_group(group, body_size)
-                if heading is not None:
-                    if title and page.number == 1 and heading.text == title:
-                        continue
-                    elements.append(heading)
-                    headings += 1
-                    continue
-
-                inlines = _build_inlines(group)
-                if inlines:
-                    elements.append(Paragraph(inlines=inlines))
+        rows = _rows_for_page(page)
+        i = 0
+        while i < len(rows):
+            if match_marker(rows[i][0].text):
+                end = take_list(rows, i, leading)
+                elements.append(build_list_block(rows, i, end, _build_inlines))
+                lists += 1
+                i = end
+            else:
+                j = i
+                while j < len(rows) and not match_marker(rows[j][0].text):
+                    j += 1
+                for group in _segment_groups(rows[i:j], leading):
+                    emit_group(group, page.number)
+                i = j
 
     log.info(
-        "Built document: %d element(s) (%d heading(s))", len(elements), headings
+        "Built document: %d element(s) (%d heading(s), %d list(s))",
+        len(elements),
+        headings,
+        lists,
     )
     return Document(meta=meta, elements=elements)

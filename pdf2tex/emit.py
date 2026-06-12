@@ -98,10 +98,33 @@ def _render_element(element) -> str:
         return f"\\[\n{element.latex}\n\\]"
     if isinstance(element, TodoPlaceholder):
         return f"\\todo[inline]{{{escape_text(element.reason)}}}"
-    if isinstance(element, (ListBlock, Table)):
-        # Rendered in later phases; emit nothing for now.
+    if isinstance(element, ListBlock):
+        return _render_list(element)
+    if isinstance(element, Table):
+        # Rendered in a later phase; emit nothing for now.
         return ""
     return ""
+
+
+def _render_list(lb: ListBlock, depth: int = 0) -> str:
+    pad = "  " * depth
+    out = [f"{pad}\\begin{{{lb.kind}}}"]
+    for item in lb.items:
+        if isinstance(item, ListBlock):
+            out.append(_render_list(item, depth + 1))
+        else:  # list of inline runs
+            text = "".join(_render_inline(i) for i in item)
+            wrapped = textwrap.fill(
+                text,
+                width=WRAP_WIDTH,
+                initial_indent=f"{pad}  \\item ",
+                subsequent_indent=f"{pad}    ",
+                break_long_words=False,
+                break_on_hyphens=False,
+            )
+            out.append(wrapped if text else f"{pad}  \\item")
+    out.append(f"{pad}\\end{{{lb.kind}}}")
+    return "\n".join(out)
 
 
 def render(doc: Document, no_title: bool = False, preamble: str | None = None) -> str:
