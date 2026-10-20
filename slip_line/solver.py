@@ -780,7 +780,7 @@ class MohrCoulombGravityPrandtlSolver:
         self._built = True
 
         q_x, q_vals = self.contact_pressure_curve()
-        Q = float(np.trapz(q_vals, q_x))   # half-footing load per unit length
+        Q = float(np.trapezoid(q_vals, q_x))   # half-footing load per unit length
         return {
             'q_per_unit_length_half': Q,
             'q_per_unit_length_full': 2.0 * Q,
@@ -1219,7 +1219,7 @@ class DiskPrandtlSolver:
         """
         ths, sn, tau = self.stress_distribution_curve(2001)
         integrand = sn * np.cos(ths) + tau * np.sin(ths)
-        return 2.0 * self.R * float(np.trapz(integrand, ths))
+        return 2.0 * self.R * float(np.trapezoid(integrand, ths))
 
     # ------------------------------------------------------------------
     # Piecewise roughness, σ_n(θ), τ(θ)  (closed form)
@@ -1314,8 +1314,8 @@ class DiskPrandtlSolver:
         dF_v = sigma_n * np.cos(phi) - tau * np.sin(phi)
         dF_h = -sigma_n * np.sin(phi) - tau * np.cos(phi)
 
-        F_v = R * float(np.trapz(dF_v, phi))
-        F_h = R * float(np.trapz(dF_h, phi))
+        F_v = R * float(np.trapezoid(dF_v, phi))
+        F_h = R * float(np.trapezoid(dF_h, phi))
 
         return {
             'F_v': F_v,
@@ -1772,7 +1772,7 @@ class MohrCoulombDiskPrandtlSolver:
         """
         ths, sn, tau = self.stress_distribution_curve(2001)
         integrand = sn * np.cos(ths) + tau * np.sin(ths)
-        return 2.0 * self.R * float(np.trapz(integrand, ths))
+        return 2.0 * self.R * float(np.trapezoid(integrand, ths))
 
     def forces_on_half_disk(self, n: int = 2001) -> dict:
         """
@@ -1793,8 +1793,8 @@ class MohrCoulombDiskPrandtlSolver:
         dF_v = sigma_n * np.cos(ths) - tau * np.sin(ths)
         dF_h = -sigma_n * np.sin(ths) - tau * np.cos(ths)
 
-        F_v = self.R * float(np.trapz(dF_v, ths))
-        F_h = self.R * float(np.trapz(dF_h, ths))
+        F_v = self.R * float(np.trapezoid(dF_v, ths))
+        F_h = self.R * float(np.trapezoid(dF_h, ths))
         return {
             'F_v': F_v,
             'F_h': F_h,
