@@ -13,6 +13,7 @@ from .solver import (
     PrandtlSolver, DiskPrandtlSolver, MohrCoulombPrandtlSolver,
     MohrCoulombDiskPrandtlSolver,
 )
+from .velocity import PrandtlVelocityField
 
 
 def plot_slip_lines(
@@ -475,6 +476,192 @@ def plot_mc_disk_slip_lines(
     axp.set_xlim(0, max(1, np.degrees(tmax)))
     axp.set_ylim(0, max(Nc_flat, sn.max() / c) * 1.1)
     axp.legend(loc='upper right', fontsize=9)
+
+    plt.tight_layout()
+    if show:
+        plt.show()
+    return fig
+
+
+def plot_prandtl_velocity(
+    vf: PrandtlVelocityField,
+    show: bool = True,
+    title: str | None = None,
+    step: int = 2,
+):
+    """
+    Velocity field of a PrandtlVelocityField: arrows on the (mirrored)
+    mechanism, velocity discontinuity and rigid soil (left), and the
+    hodograph (right).  Arrows are drawn at every `step`-th mesh node.
+    """
+    solver = vf.solver
+    B = solver.B
+    v0 = vf.v0
+    c_arrow = '#2a78d6'
+    c_jump = '#eb6834'
+    c_net = '#c8c7c2'
+    c_rigid = '#efeeea'
+    c_ink = '#52514e'
+
+    fig, (ax, axh) = plt.subplots(
+        1, 2, figsize=(15, 6.2), gridspec_kw={'width_ratios': [2.3, 1]},
+    )
+
+    # ---- Rigid soil and plastic zone ----
+    outer = vf.outer_alpha_line()
+    ox = np.array([nd.x for nd in outer])
+    oy = np.array([nd.y for nd in outer])
+    x_lim = 1.12 * ox.max()
+    y_lim = 1.25 * oy.max()
+    ax.add_patch(mpatches.Rectangle(
+        (-x_lim, 0), 2 * x_lim, y_lim, facecolor=c_rigid, hatch='///',
+        edgecolor='#dddcd6', linewidth=0, zorder=0, label='rigid soil, V = 0',
+    ))
+    zone_x = np.concatenate([-ox[::-1], ox[1:]])
+    zone_y = np.concatenate([oy[::-1], oy[1:]])
+    ax.fill(zone_x, zone_y, facecolor='white', edgecolor='none', zorder=1)
+
+    # ---- Slip-line net (both halves) ----
+    for line in solver.all_alpha_lines() + solver.all_beta_lines():
+        xs = np.array([nd.x for nd in line])
+        ys = np.array([nd.y for nd in line])
+        for sgn in (1, -1):
+            ax.plot(sgn * xs, ys, color=c_net, linewidth=0.6, zorder=2)
+
+    # ---- Velocity discontinuity (outer α-line) ----
+    for sgn, lbl in ((1, f'velocity jump |ΔV| = {vf.U / v0:.3f}·V₀'), (-1, None)):
+        ax.plot(sgn * ox, oy, color=c_jump, linewidth=2.2, zorder=4, label=lbl)
+
+    # ---- Arrow samples: regular lattice on the net, skipping the corner ----
+    pts: dict[tuple[float, float], tuple[float, float, float, float]] = {}
+
+    def _add(nd, vx, vy):
+        pts[(round(nd.x, 9), round(nd.y, 9))] = (nd.x, nd.y, vx, vy)
+
+    samples = vf.region_samples()
+    N_I = len(solver.region_I_nodes) - 1
+    it = iter(samples['I'])
+    for i in range(N_I + 1):
+        for j in range(i + 1):
+            nd, vx, vy = next(it)
+            if i % step == 0 and j % step == 0:
+                _add(nd, vx, vy)
+    n_p = len(solver.region_III_nodes) - 1
+    it = iter(samples['III'])
+    for j in range(n_p + 1):
+        for i in range(n_p + 1 - j):
+            nd, vx, vy = next(it)
+            if i % step == 0 and j % step == 0:
+                _add(nd, vx, vy)
+    dpsi = solver.delta_psi / solver.n_fan
+    n_r = len(solver.region_II_nodes[0]) - 1
+    it = iter(samples['II'])
+    for k in range(solver.n_fan + 1):
+        for j in range(n_r + 1):
+            nd, vx, vy = next(it)
+            if j == 0 or j % step:
+                continue
+            m = max(1, round(step / (j * dpsi)))   # keep arc spacing ≈ step·dr
+            if k % m == 0:
+                _add(nd, vx, vy)
+
+    P = np.array(list(pts.values()))
+    speed = np.hypot(P[:, 2], P[:, 3])
+    speed_max = speed.max()
+    arrow_len = 0.85 * step * solver.dr
+    q_kw = dict(angles='xy', scale_units='xy', scale=speed_max / arrow_len,
+                color=c_arrow, width=0.0032, headwidth=4, headlength=4.5,
+                zorder=5)
+    if np.ptp(speed) < 1e-6 * speed_max:
+        v_lbl = f'soil velocity, |V| = {speed_max / v0:.3f}·V₀'
+    else:
+        v_lbl = (f'soil velocity, |V| = {speed.min() / v0:.3f}'
+                 f'–{speed_max / v0:.3f}·V₀')
+    ax.quiver(P[:, 0], P[:, 1], P[:, 2], P[:, 3], label=v_lbl, **q_kw)
+    ax.quiver(-P[:, 0], P[:, 1], -P[:, 2], P[:, 3], **q_kw)
+
+    # ---- Footing and its velocity ----
+    ax.fill_between([-B, B], [0, 0], [-0.06 * B, -0.06 * B],
+                    color='dimgray', zorder=6)
+    ax.plot([-B, B], [0, 0], color='black', linewidth=3, zorder=7)
+    ax.annotate('', xy=(0, -0.08 * B), xytext=(0, -0.42 * B),
+                arrowprops=dict(arrowstyle='-|>', color='black', lw=2),
+                zorder=7)
+    ax.text(0.05 * B, -0.27 * B, 'V₀', fontsize=13, va='center')
+    ax.plot([-x_lim, x_lim], [0, 0], color='saddlebrown', linewidth=1.0,
+            zorder=3)
+
+    # Region labels (right half)
+    for name in ('I', 'II', 'III'):
+        nds = [s[0] for s in samples[name]]
+        cx = np.mean([nd.x for nd in nds])
+        cy = np.mean([nd.y for nd in nds])
+        if name == 'II':
+            cy *= 1.35
+        ax.text(cx, cy, name, fontsize=13, fontweight='bold', color=c_ink,
+                ha='center', va='center', zorder=8,
+                bbox=dict(boxstyle='round,pad=0.2', facecolor='white',
+                          edgecolor='none', alpha=0.85))
+
+    ax.set_xlim(-x_lim, x_lim)
+    ax.set_ylim(y_lim, -0.55 * B)   # y down
+    ax.set_aspect('equal')
+    ax.set_xlabel('x', fontsize=11)
+    ax.set_ylabel('depth y', fontsize=11)
+    ax.grid(True, linestyle=':', alpha=0.3)
+    ax.legend(loc='upper right', fontsize=9, framealpha=0.95)
+    ax.set_title(
+        title or f'Velocity field — smooth strip footing, Tresca, '
+                 f'B = {B:g}, V₀ = {v0:g}',
+        fontsize=12,
+    )
+
+    # ---- Hodograph (same y-down orientation as the physical plane) ----
+    H = np.array([(vx, vy) for grp in samples.values()
+                  for _, vx, vy in grp]) / v0
+    hx, hy = H[:, 0], H[:, 1]
+    for sgn in (1, -1):
+        axh.plot(sgn * hx, hy, 'o', color=c_arrow, markersize=4, zorder=4)
+
+    def _mean_v(name):
+        V = np.array([(vx, vy) for _, vx, vy in samples[name]]) / v0
+        return V.mean(axis=0)
+
+    vI, vIII = _mean_v('I'), _mean_v('III')
+    for sgn in (1, -1):
+        axh.annotate('', xy=(sgn * vI[0], vI[1]), xytext=(0, 0),
+                     arrowprops=dict(arrowstyle='-|>', color=c_jump, lw=1.8))
+        axh.plot([0, sgn * vI[0]], [1, vI[1]], color=c_ink, linestyle='--',
+                 linewidth=1)
+    axh.plot([0, 0], [0, 1], color='black', linewidth=2)
+    axh.plot(0, 0, 'ks', markersize=7)
+    axh.plot(0, 1, 'ks', markersize=7)
+
+    lbl = dict(fontsize=10, color=c_ink)
+    axh.text(0.06, -0.06, 'O  rigid soil', ha='left', va='bottom', **lbl)
+    axh.text(-0.06, 1.06, 'F  footing', ha='right', va='top', **lbl)
+    axh.text(vI[0] + 0.08, vI[1], 'I', ha='left', va='center', **lbl)
+    axh.text(vIII[0] + 0.08, vIII[1], 'III', ha='left', va='center', **lbl)
+    psi_mid = 0.5 * (solver.psi_A + solver.psi_B)
+    r_mid = vf.U / v0
+    axh.text((r_mid + 0.12) * np.cos(psi_mid - np.pi / 4),
+             (r_mid + 0.12) * np.sin(psi_mid - np.pi / 4), 'II (fan)',
+             ha='left', va='center', **lbl)
+    axh.text(0.5 * vI[0], 0.5 * vI[1] - 0.08, 'jump', ha='right',
+             va='bottom', rotation=0, fontsize=9, color=c_jump)
+    axh.text(0.5 * vI[0], 1.06, 'slip under\nfooting', ha='center',
+             va='top', fontsize=9, color=c_ink)
+
+    lim = 1.25 * r_mid
+    axh.set_xlim(-lim, lim)
+    axh.set_ylim(lim, -lim)   # y down
+    axh.set_aspect('equal')
+    axh.axhline(0, color=c_net, linewidth=0.8, zorder=0)
+    axh.axvline(0, color=c_net, linewidth=0.8, zorder=0)
+    axh.grid(True, linestyle=':', alpha=0.3)
+    axh.set_xlabel('vx / V₀', fontsize=11)
+    axh.set_ylabel('vy / V₀  (down +)', fontsize=11)
+    axh.set_title('Hodograph', fontsize=12)
 
     plt.tight_layout()
     if show:
