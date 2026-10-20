@@ -2,7 +2,7 @@
 main.py — entry point for the Prandtl slip line analysis.
 
 Usage:
-  python main.py
+  uv run main.py
 
 Two foundation geometries available:
   1. Flat strip footing

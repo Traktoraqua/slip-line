@@ -1,6 +1,9 @@
 """Mohr-Coulomb disk foundation slip-line plots."""
 import matplotlib
 matplotlib.use("Agg")
+from pathlib import Path
+PLOTS = Path(__file__).parent / 'plots'
+PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -29,5 +32,5 @@ for name, kw in cases:
           f"{res['sigma_n_at_bottom']:9.4f}  "
           f"{res['theta_max_deg']:9.2f}  {len(s.region_I_mesh):5d}")
     fig = plot_mc_disk_slip_lines(s, show=False)
-    fig.savefig(rf'c:\Appl\Slip_line\{name}', dpi=120, bbox_inches='tight')
+    fig.savefig(PLOTS / name, dpi=120, bbox_inches='tight')
     plt.close(fig)

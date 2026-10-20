@@ -1,6 +1,9 @@
 """Generate Mohr-Coulomb Prandtl slip-line field plots."""
 import matplotlib
 matplotlib.use("Agg")
+from pathlib import Path
+PLOTS = Path(__file__).parent / 'plots'
+PLOTS.mkdir(exist_ok=True)
 import numpy as np
 
 from slip_line.solver import MohrCoulombPrandtlSolver
@@ -23,5 +26,5 @@ for case in cases:
     )
     fig = plot_mc_slip_lines(solver, show=False)
     fname = f"plot_mc_{case['label']}.png"
-    fig.savefig(fname, dpi=120, bbox_inches="tight")
+    fig.savefig(PLOTS / fname, dpi=120, bbox_inches="tight")
     print(f"  saved {fname}")

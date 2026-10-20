@@ -1,6 +1,9 @@
 """Re-render disk plots with curved Region I characteristics."""
 import matplotlib
 matplotlib.use('Agg')
+from pathlib import Path
+PLOTS = Path(__file__).parent / 'plots'
+PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
 
 from slip_line.boundary import DiskFoundationBoundary
@@ -35,5 +38,5 @@ for name, kw in cases:
           f"theta_max={res['theta_max_deg']:.1f} deg  "
           f"mesh_rows={len(s.region_I_mesh)}")
     fig = plot_disk_slip_lines(s, show=False)
-    fig.savefig(rf'c:\Appl\Slip_line\{name}', dpi=120)
+    fig.savefig(PLOTS / name, dpi=120)
     plt.close(fig)

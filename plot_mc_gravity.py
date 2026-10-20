@@ -8,6 +8,9 @@ values of the dimensionless weight γ·B/c.
 
 import matplotlib
 matplotlib.use('Agg')
+from pathlib import Path
+PLOTS = Path(__file__).parent / 'plots'
+PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -70,7 +73,7 @@ def main():
         '(φ = 30°, smooth, rigorous MOC with gravity)'
     )
     fig.tight_layout()
-    out = 'mc_gravity_phi30.png'
+    out = PLOTS / 'mc_gravity_phi30.png'
     fig.savefig(out, dpi=140)
     print(f"\nSaved: {out}")
 
@@ -90,7 +93,7 @@ def main():
     ax2.grid(alpha=0.3)
     ax2.legend()
     fig2.tight_layout()
-    out2 = 'mc_gravity_contact_pressure.png'
+    out2 = PLOTS / 'mc_gravity_contact_pressure.png'
     fig2.savefig(out2, dpi=140)
     print(f"Saved: {out2}")
 

@@ -1,5 +1,8 @@
 import matplotlib
 matplotlib.use("Agg")
+from pathlib import Path
+PLOTS = Path(__file__).parent / 'plots'
+PLOTS.mkdir(exist_ok=True)
 import numpy as np
 from slip_line.boundary import DiskFoundationBoundary
 from slip_line.solver import MohrCoulombDiskPrandtlSolver
@@ -16,5 +19,5 @@ out = s.solve()
 print(out)
 
 fig = plot_mc_disk_slip_lines(s, show=False)
-fig.savefig(r'c:\Appl\Slip_line\mc_disk_phi30_p05_r05.png', dpi=130, bbox_inches='tight')
+fig.savefig(PLOTS / 'mc_disk_phi30_p05_r05.png', dpi=130, bbox_inches='tight')
 print("saved mc_disk_phi30_p05_r05.png")

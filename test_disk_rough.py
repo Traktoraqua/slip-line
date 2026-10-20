@@ -1,6 +1,9 @@
 """Test the piecewise-roughness (parallel-beta zone) regime."""
 import matplotlib
 matplotlib.use('Agg')
+from pathlib import Path
+PLOTS = Path(__file__).parent / 'plots'
+PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -28,5 +31,5 @@ for name, kw in cases:
           f"{str(res['parallel_beta_zone']):>9s} "
           f"{res['fan_angle_deg']:8.2f} {res['Q_over_D_over_cu']:10.4f}")
     fig = plot_disk_slip_lines(s, show=False)
-    fig.savefig(rf'c:\Appl\Slip_line\{name}', dpi=120, bbox_inches='tight')
+    fig.savefig(PLOTS / name, dpi=120, bbox_inches='tight')
     plt.close(fig)

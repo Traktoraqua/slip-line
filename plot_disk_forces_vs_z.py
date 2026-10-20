@@ -7,6 +7,9 @@ Three curves per panel: r = 0, 0.5, 1.
 """
 import matplotlib
 matplotlib.use("Agg")
+from pathlib import Path
+PLOTS = Path(__file__).parent / 'plots'
+PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -61,7 +64,7 @@ for ax, ylabel, title in (
 fig.suptitle('Tresca disk — half-disk forces vs penetration depth (horizontal push)',
              fontsize=13)
 fig.tight_layout()
-fig.savefig(r'c:\Appl\Slip_line\plot_disk_forces_vs_z.png',
+fig.savefig(PLOTS / 'plot_disk_forces_vs_z.png',
             dpi=130, bbox_inches='tight')
 print("saved plot_disk_forces_vs_z.png")
 

@@ -5,6 +5,9 @@ phi = 30°, four roughness values: r = 0, 0.5, 0.8, 1.0.
 """
 import matplotlib
 matplotlib.use("Agg")
+from pathlib import Path
+PLOTS = Path(__file__).parent / 'plots'
+PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -67,7 +70,7 @@ fig.suptitle(
     fontsize=13,
 )
 fig.tight_layout()
-outfile = rf'c:\Appl\Slip_line\plot_mc_disk_forces_vs_z_phi{int(phi_deg)}.png'
+outfile = PLOTS / f'plot_mc_disk_forces_vs_z_phi{int(phi_deg)}.png'
 fig.savefig(outfile, dpi=130, bbox_inches='tight')
 print(f"saved {outfile}")
 
