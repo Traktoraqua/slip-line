@@ -8,12 +8,13 @@ from __future__ import annotations
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+from matplotlib.collections import PolyCollection
 
 from .solver import (
     PrandtlSolver, DiskPrandtlSolver, MohrCoulombPrandtlSolver,
     MohrCoulombDiskPrandtlSolver,
 )
-from .velocity import PrandtlVelocityField
+from .velocity import DiskVelocityField, PrandtlVelocityField
 
 
 def plot_slip_lines(
@@ -483,6 +484,110 @@ def plot_mc_disk_slip_lines(
     return fig
 
 
+# Shared colours for the velocity-field figures.
+_C_ARROW = '#2a78d6'
+_C_JUMP = '#eb6834'
+_C_NET = '#c8c7c2'
+_C_RIGID = '#efeeea'
+_C_INK = '#52514e'
+_C_NEG = '#f2b8b7'
+
+
+def _velocity_background(ax, solver, outer, zones, x_lim, y_lim, jump):
+    """Rigid soil, plastic zone(s), mirrored slip-line net and the
+    velocity-discontinuity line `outer` (right half)."""
+    ax.add_patch(mpatches.Rectangle(
+        (-x_lim, 0), 2 * x_lim, y_lim, facecolor=_C_RIGID, hatch='///',
+        edgecolor='#dddcd6', linewidth=0, zorder=0, label='rigid soil, V = 0',
+    ))
+    for zx, zy in zones:
+        ax.fill(zx, zy, facecolor='white', edgecolor='none', zorder=1)
+    for line in solver.all_alpha_lines() + solver.all_beta_lines():
+        xs = np.array([nd.x for nd in line])
+        ys = np.array([nd.y for nd in line])
+        for sgn in (1, -1):
+            ax.plot(sgn * xs, ys, color=_C_NET, linewidth=0.6, zorder=2)
+    ox = np.array([nd.x for nd in outer])
+    oy = np.array([nd.y for nd in outer])
+    for sgn, lbl in ((1, f'velocity jump |ΔV| = {jump:.3f}·V₀'), (-1, None)):
+        ax.plot(sgn * ox, oy, color=_C_JUMP, linewidth=2.2, zorder=4, label=lbl)
+    ax.plot([-x_lim, x_lim], [0, 0], color='saddlebrown', linewidth=1.0,
+            zorder=3)
+
+
+def _fan_arrow_samples(add, fan_samples, n_fan, n_r, dpsi, step):
+    """Fan nodes [k][j] for arrows: every `step`-th radius (corner skipped),
+    thinning radials so the arc spacing stays ≈ step·dr."""
+    it = iter(fan_samples)
+    for k in range(n_fan + 1):
+        for j in range(n_r + 1):
+            nd, vx, vy = next(it)
+            if j == 0 or j % step:
+                continue
+            if k % max(1, round(step / (j * dpsi))) == 0:
+                add(nd, vx, vy)
+
+
+def _velocity_arrows(ax, pts, arrow_len, v0):
+    """Mirrored quiver of {key: (x, y, vx, vy)}; the fastest arrow has
+    length `arrow_len`."""
+    P = np.array(list(pts.values()))
+    speed = np.hypot(P[:, 2], P[:, 3])
+    speed_max = speed.max()
+    q_kw = dict(angles='xy', scale_units='xy', scale=speed_max / arrow_len,
+                color=_C_ARROW, width=0.0032, headwidth=4, headlength=4.5,
+                zorder=5)
+    if np.ptp(speed) < 1e-6 * speed_max:
+        v_lbl = f'soil velocity, |V| = {speed_max / v0:.3f}·V₀'
+    else:
+        v_lbl = (f'soil velocity, |V| = {speed.min() / v0:.3f}'
+                 f'–{speed_max / v0:.3f}·V₀')
+    ax.quiver(P[:, 0], P[:, 1], P[:, 2], P[:, 3], label=v_lbl, **q_kw)
+    ax.quiver(-P[:, 0], P[:, 1], -P[:, 2], P[:, 3], **q_kw)
+
+
+def _region_labels(ax, samples, names, fan_shift=1.35):
+    """Bold region names at the centroid of each region's nodes."""
+    for name in names:
+        nds = [smp[0] for smp in samples[name]]
+        cx = np.mean([nd.x for nd in nds])
+        cy = np.mean([nd.y for nd in nds])
+        if name == 'II':
+            cy *= fan_shift
+        ax.text(cx, cy, name, fontsize=13, fontweight='bold', color=_C_INK,
+                ha='center', va='center', zorder=8,
+                bbox=dict(boxstyle='round,pad=0.2', facecolor='white',
+                          edgecolor='none', alpha=0.85))
+
+
+def _hodograph(axh, samples, v0, v_jump, lim, markersize=4):
+    """Mirrored hodograph of all node velocities with O (rigid soil),
+    F (foundation) and the jump vector O → v_jump (right half)."""
+    H = np.array([(vx, vy) for grp in samples.values()
+                  for _, vx, vy in grp]) / v0
+    for sgn in (1, -1):
+        axh.plot(sgn * H[:, 0], H[:, 1], 'o', color=_C_ARROW,
+                 markersize=markersize, zorder=4)
+        axh.annotate('', xy=(sgn * v_jump[0], v_jump[1]), xytext=(0, 0),
+                     arrowprops=dict(arrowstyle='-|>', color=_C_JUMP, lw=1.8))
+    axh.plot([0, 0], [0, 1], color='black', linewidth=2)
+    axh.plot(0, 0, 'ks', markersize=7)
+    axh.plot(0, 1, 'ks', markersize=7)
+    axh.text(0.06, -0.06, 'O  rigid soil', ha='left', va='bottom',
+             fontsize=10, color=_C_INK)
+    axh.text(0.5 * v_jump[0], 0.5 * v_jump[1] - 0.08, 'jump', ha='right',
+             va='bottom', fontsize=9, color=_C_JUMP)
+    axh.set_xlim(-lim, lim)
+    axh.set_ylim(lim, -lim)   # y down
+    axh.set_aspect('equal')
+    axh.axhline(0, color=_C_NET, linewidth=0.8, zorder=0)
+    axh.axvline(0, color=_C_NET, linewidth=0.8, zorder=0)
+    axh.grid(True, linestyle=':', alpha=0.3)
+    axh.set_xlabel('vx / V₀', fontsize=11)
+    axh.set_ylabel('vy / V₀  (down +)', fontsize=11)
+    axh.set_title('Hodograph', fontsize=12)
+
+
 def plot_prandtl_velocity(
     vf: PrandtlVelocityField,
     show: bool = True,
@@ -497,40 +602,20 @@ def plot_prandtl_velocity(
     solver = vf.solver
     B = solver.B
     v0 = vf.v0
-    c_arrow = '#2a78d6'
-    c_jump = '#eb6834'
-    c_net = '#c8c7c2'
-    c_rigid = '#efeeea'
-    c_ink = '#52514e'
 
     fig, (ax, axh) = plt.subplots(
         1, 2, figsize=(15, 6.2), gridspec_kw={'width_ratios': [2.3, 1]},
     )
 
-    # ---- Rigid soil and plastic zone ----
+    # ---- Rigid soil, plastic zone, net, velocity discontinuity ----
     outer = vf.outer_alpha_line()
     ox = np.array([nd.x for nd in outer])
     oy = np.array([nd.y for nd in outer])
     x_lim = 1.12 * ox.max()
     y_lim = 1.25 * oy.max()
-    ax.add_patch(mpatches.Rectangle(
-        (-x_lim, 0), 2 * x_lim, y_lim, facecolor=c_rigid, hatch='///',
-        edgecolor='#dddcd6', linewidth=0, zorder=0, label='rigid soil, V = 0',
-    ))
-    zone_x = np.concatenate([-ox[::-1], ox[1:]])
-    zone_y = np.concatenate([oy[::-1], oy[1:]])
-    ax.fill(zone_x, zone_y, facecolor='white', edgecolor='none', zorder=1)
-
-    # ---- Slip-line net (both halves) ----
-    for line in solver.all_alpha_lines() + solver.all_beta_lines():
-        xs = np.array([nd.x for nd in line])
-        ys = np.array([nd.y for nd in line])
-        for sgn in (1, -1):
-            ax.plot(sgn * xs, ys, color=c_net, linewidth=0.6, zorder=2)
-
-    # ---- Velocity discontinuity (outer α-line) ----
-    for sgn, lbl in ((1, f'velocity jump |ΔV| = {vf.U / v0:.3f}·V₀'), (-1, None)):
-        ax.plot(sgn * ox, oy, color=c_jump, linewidth=2.2, zorder=4, label=lbl)
+    zone = (np.concatenate([-ox[::-1], ox[1:]]),
+            np.concatenate([oy[::-1], oy[1:]]))
+    _velocity_background(ax, solver, outer, [zone], x_lim, y_lim, vf.U / v0)
 
     # ---- Arrow samples: regular lattice on the net, skipping the corner ----
     pts: dict[tuple[float, float], tuple[float, float, float, float]] = {}
@@ -553,32 +638,10 @@ def plot_prandtl_velocity(
             nd, vx, vy = next(it)
             if i % step == 0 and j % step == 0:
                 _add(nd, vx, vy)
-    dpsi = solver.delta_psi / solver.n_fan
-    n_r = len(solver.region_II_nodes[0]) - 1
-    it = iter(samples['II'])
-    for k in range(solver.n_fan + 1):
-        for j in range(n_r + 1):
-            nd, vx, vy = next(it)
-            if j == 0 or j % step:
-                continue
-            m = max(1, round(step / (j * dpsi)))   # keep arc spacing ≈ step·dr
-            if k % m == 0:
-                _add(nd, vx, vy)
-
-    P = np.array(list(pts.values()))
-    speed = np.hypot(P[:, 2], P[:, 3])
-    speed_max = speed.max()
-    arrow_len = 0.85 * step * solver.dr
-    q_kw = dict(angles='xy', scale_units='xy', scale=speed_max / arrow_len,
-                color=c_arrow, width=0.0032, headwidth=4, headlength=4.5,
-                zorder=5)
-    if np.ptp(speed) < 1e-6 * speed_max:
-        v_lbl = f'soil velocity, |V| = {speed_max / v0:.3f}·V₀'
-    else:
-        v_lbl = (f'soil velocity, |V| = {speed.min() / v0:.3f}'
-                 f'–{speed_max / v0:.3f}·V₀')
-    ax.quiver(P[:, 0], P[:, 1], P[:, 2], P[:, 3], label=v_lbl, **q_kw)
-    ax.quiver(-P[:, 0], P[:, 1], -P[:, 2], P[:, 3], **q_kw)
+    _fan_arrow_samples(_add, samples['II'], solver.n_fan,
+                       len(solver.region_II_nodes[0]) - 1,
+                       solver.delta_psi / solver.n_fan, step)
+    _velocity_arrows(ax, pts, 0.85 * step * solver.dr, v0)
 
     # ---- Footing and its velocity ----
     ax.fill_between([-B, B], [0, 0], [-0.06 * B, -0.06 * B],
@@ -588,20 +651,8 @@ def plot_prandtl_velocity(
                 arrowprops=dict(arrowstyle='-|>', color='black', lw=2),
                 zorder=7)
     ax.text(0.05 * B, -0.27 * B, 'V₀', fontsize=13, va='center')
-    ax.plot([-x_lim, x_lim], [0, 0], color='saddlebrown', linewidth=1.0,
-            zorder=3)
 
-    # Region labels (right half)
-    for name in ('I', 'II', 'III'):
-        nds = [s[0] for s in samples[name]]
-        cx = np.mean([nd.x for nd in nds])
-        cy = np.mean([nd.y for nd in nds])
-        if name == 'II':
-            cy *= 1.35
-        ax.text(cx, cy, name, fontsize=13, fontweight='bold', color=c_ink,
-                ha='center', va='center', zorder=8,
-                bbox=dict(boxstyle='round,pad=0.2', facecolor='white',
-                          edgecolor='none', alpha=0.85))
+    _region_labels(ax, samples, ('I', 'II', 'III'))
 
     ax.set_xlim(-x_lim, x_lim)
     ax.set_ylim(y_lim, -0.55 * B)   # y down
@@ -617,51 +668,154 @@ def plot_prandtl_velocity(
     )
 
     # ---- Hodograph (same y-down orientation as the physical plane) ----
-    H = np.array([(vx, vy) for grp in samples.values()
-                  for _, vx, vy in grp]) / v0
-    hx, hy = H[:, 0], H[:, 1]
-    for sgn in (1, -1):
-        axh.plot(sgn * hx, hy, 'o', color=c_arrow, markersize=4, zorder=4)
-
     def _mean_v(name):
         V = np.array([(vx, vy) for _, vx, vy in samples[name]]) / v0
         return V.mean(axis=0)
 
     vI, vIII = _mean_v('I'), _mean_v('III')
+    r_mid = vf.U / v0
+    _hodograph(axh, samples, v0, vI, 1.25 * r_mid)
     for sgn in (1, -1):
-        axh.annotate('', xy=(sgn * vI[0], vI[1]), xytext=(0, 0),
-                     arrowprops=dict(arrowstyle='-|>', color=c_jump, lw=1.8))
-        axh.plot([0, sgn * vI[0]], [1, vI[1]], color=c_ink, linestyle='--',
+        axh.plot([0, sgn * vI[0]], [1, vI[1]], color=_C_INK, linestyle='--',
                  linewidth=1)
-    axh.plot([0, 0], [0, 1], color='black', linewidth=2)
-    axh.plot(0, 0, 'ks', markersize=7)
-    axh.plot(0, 1, 'ks', markersize=7)
 
-    lbl = dict(fontsize=10, color=c_ink)
-    axh.text(0.06, -0.06, 'O  rigid soil', ha='left', va='bottom', **lbl)
+    lbl = dict(fontsize=10, color=_C_INK)
     axh.text(-0.06, 1.06, 'F  footing', ha='right', va='top', **lbl)
     axh.text(vI[0] + 0.08, vI[1], 'I', ha='left', va='center', **lbl)
     axh.text(vIII[0] + 0.08, vIII[1], 'III', ha='left', va='center', **lbl)
     psi_mid = 0.5 * (solver.psi_A + solver.psi_B)
-    r_mid = vf.U / v0
     axh.text((r_mid + 0.12) * np.cos(psi_mid - np.pi / 4),
              (r_mid + 0.12) * np.sin(psi_mid - np.pi / 4), 'II (fan)',
              ha='left', va='center', **lbl)
-    axh.text(0.5 * vI[0], 0.5 * vI[1] - 0.08, 'jump', ha='right',
-             va='bottom', rotation=0, fontsize=9, color=c_jump)
     axh.text(0.5 * vI[0], 1.06, 'slip under\nfooting', ha='center',
-             va='top', fontsize=9, color=c_ink)
+             va='top', fontsize=9, color=_C_INK)
 
-    lim = 1.25 * r_mid
-    axh.set_xlim(-lim, lim)
-    axh.set_ylim(lim, -lim)   # y down
-    axh.set_aspect('equal')
-    axh.axhline(0, color=c_net, linewidth=0.8, zorder=0)
-    axh.axvline(0, color=c_net, linewidth=0.8, zorder=0)
-    axh.grid(True, linestyle=':', alpha=0.3)
-    axh.set_xlabel('vx / V₀', fontsize=11)
-    axh.set_ylabel('vy / V₀  (down +)', fontsize=11)
-    axh.set_title('Hodograph', fontsize=12)
+    plt.tight_layout()
+    if show:
+        plt.show()
+    return fig
+
+
+def plot_disk_velocity(
+    vf: DiskVelocityField,
+    show: bool = True,
+    title: str | None = None,
+    step: int = 3,
+):
+    """
+    Velocity field of a DiskVelocityField: arrows on the (mirrored)
+    mechanism, velocity discontinuity, rigid soil and the cells where the
+    plastic work against the slip-line stress field is negative (left),
+    and the hodograph (right).  Arrows are drawn at every `step`-th node.
+    """
+    solver = vf.solver
+    D, R, y_c = solver.D, solver.R, solver.y_c
+    v0 = vf.v0
+    energy = vf.energy_balance()
+    pw = vf.plastic_work()
+
+    fig, (ax, axh) = plt.subplots(
+        1, 2, figsize=(15, 6.6), gridspec_kw={'width_ratios': [2.0, 1]},
+    )
+
+    # ---- Rigid soil, plastic zone, net, velocity discontinuity ----
+    outer = vf.outer_alpha_line()
+    zone_nodes = outer + solver.disk_surface_nodes    # surface end → corner → bottom
+    zx = np.array([nd.x for nd in zone_nodes])
+    zy = np.array([nd.y for nd in zone_nodes])
+    x_lim = 1.12 * zx.max()
+    y_lim = 1.3 * zy.max()
+    y_top = -0.4 * x_lim     # crop the disk above the surface
+    _velocity_background(ax, solver, outer, [(zx, zy), (-zx, zy)],
+                         x_lim, y_lim, vf.U / v0)
+
+    # ---- Negative plastic work ----
+    neg = pw['xy'][pw['d'] < 0]
+    if len(neg):
+        mirrored = neg * np.array([-1.0, 1.0])
+        ax.add_collection(PolyCollection(
+            list(neg) + list(mirrored), facecolor=_C_NEG, edgecolor=_C_NEG,
+            linewidth=0.3, zorder=1.5, label='negative plastic work',
+        ))
+
+    # ---- Arrow samples: regular lattice on each region's net ----
+    pts: dict[tuple[float, float], tuple[float, float, float, float]] = {}
+
+    def _add(nd, vx, vy):
+        pts[(round(nd.x, 9), round(nd.y, 9))] = (nd.x, nd.y, vx, vy)
+
+    samples = vf.region_samples()
+    it = iter(samples['I'])
+    for k, row in enumerate(solver.region_I_mesh):
+        for i in range(len(row)):
+            nd, vx, vy = next(it)
+            if i % step == 0 and (i + k) % step == 0:
+                _add(nd, vx, vy)
+    n_p = len(solver.region_III_nodes) - 1
+    it = iter(samples['III'])
+    for j in range(n_p + 1):
+        for i in range(n_p + 1 - j):
+            nd, vx, vy = next(it)
+            if i % step == 0 and j % step == 0:
+                _add(nd, vx, vy)
+    fan = solver.region_II_nodes
+    if len(fan) >= 2:
+        _fan_arrow_samples(_add, samples['II'], len(fan) - 1, len(fan[0]) - 1,
+                           solver.delta_psi_fan / (len(fan) - 1), step)
+    _velocity_arrows(ax, pts, 0.85 * step * solver.dr, v0)
+
+    # ---- Disk and its velocity ----
+    ax.add_patch(mpatches.Circle((0.0, y_c), R, facecolor='#d9d8d3',
+                                 edgecolor='black', linewidth=1.8, zorder=6))
+    y_a = y_top + 0.06 * x_lim
+    ax.annotate('', xy=(0, y_a + 0.22 * x_lim), xytext=(0, y_a),
+                arrowprops=dict(arrowstyle='-|>', color='black', lw=2),
+                zorder=7)
+    ax.text(0.03 * x_lim, y_a + 0.11 * x_lim, 'V₀', fontsize=13, va='center',
+            zorder=7)
+
+    _region_labels(ax, samples, ('I', 'II', 'III') if len(fan) >= 2 else ('I', 'III'),
+                   fan_shift=1.2)
+
+    info = (f'p = {solver.p:.2f},  θ_max = {np.degrees(solver.theta_max):.1f}°\n'
+            f'Q / (D·cᵤ):\n'
+            f'  stress field      {energy["Q_stress"] / (D * solver.cu):.3f}\n'
+            f'  virtual work      {energy["Q_virtual_work"] / (D * solver.cu):.3f}\n'
+            f'  upper bound       {energy["Q_upper_bound"] / (D * solver.cu):.3f}\n'
+            f'negative-work area  {100 * energy["negative_area_fraction"]:.0f} %')
+    ax.text(0.015, 0.985, info, transform=ax.transAxes, va='top', ha='left',
+            fontsize=9, family='monospace', color=_C_INK, zorder=9,
+            bbox=dict(boxstyle='round', facecolor='white', edgecolor=_C_NET))
+
+    ax.set_xlim(-x_lim, x_lim)
+    ax.set_ylim(y_lim, y_top)   # y down
+    ax.set_aspect('equal')
+    ax.set_xlabel('x', fontsize=11)
+    ax.set_ylabel('depth y', fontsize=11)
+    ax.grid(True, linestyle=':', alpha=0.3)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.13), ncol=2,
+              fontsize=9, frameon=False)
+    ax.set_title(
+        title or f'Velocity field — smooth disk, Tresca, D = {D:g}, '
+                 f'p = {solver.p:g}, V₀ = {v0:g}',
+        fontsize=12,
+    )
+
+    # ---- Hodograph ----
+    bottom = solver.region_I_mesh[0][0]
+    th = bottom.psi - np.pi / 4.0
+    v_jump = (vf.U / v0 * np.cos(th), vf.U / v0 * np.sin(th))
+    _hodograph(axh, samples, v0, v_jump, 1.25 * vf.U / v0, markersize=2)
+    axh.text(-0.06, 1.06, 'F  disk', ha='right', va='top', fontsize=10,
+             color=_C_INK)
+    for name in samples:
+        if name == 'II' and len(fan) < 2:
+            continue
+        V = np.array([(vx, vy) for _, vx, vy in samples[name]]) / v0
+        ang = np.arctan2(V[:, 1].mean(), V[:, 0].mean())
+        r_lbl = vf.U / v0 + 0.12
+        axh.text(r_lbl * np.cos(ang), r_lbl * np.sin(ang), name, ha='left',
+                 va='center', fontsize=10, color=_C_INK)
 
     plt.tight_layout()
     if show:
