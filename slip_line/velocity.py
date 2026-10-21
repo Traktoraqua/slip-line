@@ -328,8 +328,10 @@ class DiskVelocityField:
       • Outer α-line (Region I column 0 from the disk bottom → fan outer arc
         → Region III boundary) borders soil at rest: v = 0, u = U.
       • Disk contact: V·n = V0·n with V0 the disk velocity and n the outward
-        disk normal; tangential slip is free (smooth disk, r = 0).  At the
-        disk bottom this fixes U (U = 0 for a horizontal push).
+        disk normal; the soil may slip along the disk.  At the disk bottom
+        this fixes U (U = 0 for a horizontal push).  For r > 0 the slip does
+        work against the interface shear of the solver's stress field (whose
+        shear direction is that of a horizontal push), see interface_slip().
       • Free surface: no kinematic condition.
 
     Region I's corner β-line is straight and coincides with the fan-I radial,
@@ -464,24 +466,62 @@ class DiskVelocityField:
         tris += _row_mesh_triangles(s.region_III_nodes, self.region_III_uv)
         return plastic_work_rate(tris, s.cu)
 
+    def interface_slip(self) -> dict[str, np.ndarray]:
+        """
+        Slip and shear at the disk nodes (Region I row 0), along the tangent
+        t = (n_y, −n_x) (bottom → edge):
+
+          slip = (V0 − V)·t   — disk velocity relative to the soil
+          tau  = t·S·n        — shear traction of the disk on the soil
+          w    = tau·slip     — interface work rate per unit length;
+                                w < 0 means the slip opposes the shear
+
+        Returns 'phi' (rad, from the downward axis), 'slip', 'tau', 'w'.
+        """
+        s = self.solver
+        phi, slip, tau = [], [], []
+        for nd, (u, v) in zip(s.region_I_mesh[0], self.region_I_uv[0]):
+            nx, ny = self._normal(nd)
+            vx, vy = alpha_beta_to_xy(nd.psi, u, v)
+            dx, dy = self.direction
+            f = np.arctan2(nx, ny)
+            phi.append(f)
+            slip.append((self.v0 * dx - vx) * ny - (self.v0 * dy - vy) * nx)
+            # σ₁ along ψ:  t·S·n = cu·sin(2ψ + 2φ)
+            tau.append(s.cu * np.sin(2.0 * nd.psi + 2.0 * f))
+        phi, slip, tau = np.array(phi), np.array(slip), np.array(tau)
+        return {"phi": phi, "slip": slip, "tau": tau, "w": tau * slip}
+
     def energy_balance(self) -> dict[str, float]:
         """
         Full-disk load F per unit length along the push direction (vertical Q,
-        or horizontal H), from the work equation  F·v0 = halves·(P + cu·U·L)
-        with halves = 2 for a vertical push and 1 for a horizontal push:
+        or horizontal H), from the work equation
+        F·v0 = halves·(P + cu·U·L + P_interface) with halves = 2 for a
+        vertical push and 1 for a horizontal push:
 
           F_stress        — from the solver's contact stresses
-          F_virtual_work  — P = Σ d·A (signed); equals F_stress when the
-                            velocity field is correct (virtual work identity)
-          F_upper_bound   — P = Σ |d|·A; the upper bound of this mechanism
-          negative_area_fraction — share of the plastic area with d < 0
+          F_virtual_work  — P = Σ d·A and P_interface = ∫ w ds (signed);
+                            equals F_stress when the velocity field is
+                            correct (virtual work identity)
+          F_upper_bound   — P = Σ |d|·A and P_interface = ∫ r·cu·|slip| ds;
+                            the upper bound of this mechanism
+          negative_area_fraction      — share of the plastic area with d < 0
+          negative_interface_fraction — share of the contact arc with w < 0
         """
+        s = self.solver
         pw = self.plastic_work()
         outer = self.outer_alpha_line()
         L = sum(np.hypot(b.x - a.x, b.y - a.y) for a, b in itertools.pairwise(outer))
-        P_jump = self.solver.cu * self.U * L
-        P_signed = float(np.sum(pw["d"] * pw["area"]))
-        P_abs = float(np.sum(np.abs(pw["d"]) * pw["area"]))
+        P_jump = s.cu * self.U * L
+        it = self.interface_slip()
+        w_seg = 0.5 * (it["w"][1:] + it["w"][:-1])
+        dphi = np.diff(it["phi"])
+        P_signed = float(np.sum(pw["d"] * pw["area"])) + s.R * float(
+            np.trapezoid(it["w"], it["phi"])
+        )
+        P_abs = float(np.sum(np.abs(pw["d"]) * pw["area"])) + s.R * s.r * s.cu * float(
+            np.trapezoid(np.abs(it["slip"]), it["phi"])
+        )
         if self.horizontal:
             halves = 1.0
             F_stress = -self.solver.forces_on_half_disk()["F_h"]
@@ -494,5 +534,8 @@ class DiskVelocityField:
             "F_upper_bound": halves * (P_abs + P_jump) / self.v0,
             "negative_area_fraction": float(
                 pw["area"][pw["d"] < 0].sum() / pw["area"].sum()
+            ),
+            "negative_interface_fraction": float(
+                dphi[w_seg < -1e-12].sum() / dphi.sum()
             ),
         }
