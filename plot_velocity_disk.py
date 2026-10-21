@@ -31,8 +31,8 @@ print("   p   Q/(D·cu): stress  virtual work  upper bound   negative-work area"
 for p in (0.1, 0.25, 0.4, 0.5):
     e = velocity_field(p).energy_balance()
     print(
-        f"{p:5.2f}            {e['Q_stress'] / (D * cu):6.3f}  "
-        f"{e['Q_virtual_work'] / (D * cu):12.3f}  {e['Q_upper_bound'] / (D * cu):11.3f}"
+        f"{p:5.2f}            {e['F_stress'] / (D * cu):6.3f}  "
+        f"{e['F_virtual_work'] / (D * cu):12.3f}  {e['F_upper_bound'] / (D * cu):11.3f}"
         f"   {100 * e['negative_area_fraction']:5.0f} %"
     )
 

@@ -708,6 +708,8 @@ def plot_disk_velocity(
     plastic work against the slip-line stress field is negative (left),
     and the hodograph (right).  Arrows are drawn at every `step`-th node.
     """
+    if vf.horizontal:
+        raise NotImplementedError("plot_disk_velocity mirrors the field; vertical push only")
     solver = vf.solver
     D, R, y_c = solver.D, solver.R, solver.y_c
     v0 = vf.v0
@@ -779,9 +781,9 @@ def plot_disk_velocity(
 
     info = (f'p = {solver.p:.2f},  θ_max = {np.degrees(solver.theta_max):.1f}°\n'
             f'Q / (D·cᵤ):\n'
-            f'  stress field      {energy["Q_stress"] / (D * solver.cu):.3f}\n'
-            f'  virtual work      {energy["Q_virtual_work"] / (D * solver.cu):.3f}\n'
-            f'  upper bound       {energy["Q_upper_bound"] / (D * solver.cu):.3f}\n'
+            f'  stress field      {energy["F_stress"] / (D * solver.cu):.3f}\n'
+            f'  virtual work      {energy["F_virtual_work"] / (D * solver.cu):.3f}\n'
+            f'  upper bound       {energy["F_upper_bound"] / (D * solver.cu):.3f}\n'
             f'negative-work area  {100 * energy["negative_area_fraction"]:.0f} %')
     ax.text(0.015, 0.985, info, transform=ax.transAxes, va='top', ha='left',
             fontsize=9, family='monospace', color=_C_INK, zorder=9,

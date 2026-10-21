@@ -318,14 +318,18 @@ class PrandtlVelocityField:
 
 class DiskVelocityField:
     """
-    Velocity field for a DiskPrandtlSolver net: the disk is pushed vertically
-    into the soil with speed v0 (y-down, so v0 > 0 is downward).
+    Velocity field for a DiskPrandtlSolver net.  The disk moves with speed
+    v0 either vertically into the soil (y-down, so v0 > 0 is downward; the
+    left half mirrors the right) or, with horizontal=True, horizontally
+    toward +x.  A horizontal push only loads the right half: the left half
+    of the disk moves away from the soil, which separates and stays rigid.
 
     Boundary conditions (right half, x ≥ 0):
       • Outer α-line (Region I column 0 from the disk bottom → fan outer arc
         → Region III boundary) borders soil at rest: v = 0, u = U.
-      • Disk contact: V·n = v0·n_y with n the outward disk normal; tangential
-        slip is free (smooth disk, r = 0).  At the disk bottom this fixes U.
+      • Disk contact: V·n = V0·n with V0 the disk velocity and n the outward
+        disk normal; tangential slip is free (smooth disk, r = 0).  At the
+        disk bottom this fixes U (U = 0 for a horizontal push).
       • Free surface: no kinematic condition.
 
     Region I's corner β-line is straight and coincides with the fan-I radial,
@@ -336,11 +340,16 @@ class DiskVelocityField:
     solver's region_I_mesh / region_II_nodes / region_III_nodes.
     """
 
-    def __init__(self, solver: DiskPrandtlSolver, v0: float = 1.0):
+    def __init__(
+        self, solver: DiskPrandtlSolver, v0: float = 1.0, horizontal: bool = False
+    ):
         if not solver._built:
             solver.solve()
         self.solver = solver
         self.v0 = float(v0)
+        self.horizontal = horizontal
+        # Unit direction of the disk velocity V0 (y-down).
+        self.direction = (1.0, 0.0) if horizontal else (0.0, 1.0)
         self.U = 0.0
         self.region_I_uv: list[list[tuple[float, float]]] = []
         self.region_II_uv: list[list[tuple[float, float]]] = []
@@ -380,10 +389,14 @@ class DiskVelocityField:
         mesh = self.solver.region_I_mesh
         N = len(mesh[0]) - 1
 
-        # U from the disk bottom: v = 0 and V·n = v0·n_y.
+        # U from the disk bottom: v = 0 and V·n = V0·n.
         bottom = mesh[0][0]
         n_b = self._normal(bottom)
-        self.U = self.v0 * n_b[1] / np.dot(alpha_beta_to_xy(bottom.psi, 1.0, 0.0), n_b)
+        self.U = (
+            self.v0
+            * np.dot(self.direction, n_b)
+            / np.dot(alpha_beta_to_xy(bottom.psi, 1.0, 0.0), n_b)
+        )
 
         uv: list[list[tuple[float, float]]] = [[None] * len(row) for row in mesh]
         for k in range(len(mesh)):
@@ -392,7 +405,11 @@ class DiskVelocityField:
         for i in range(1, N + 1):
             n_i = self._normal(mesh[0][i])
             uv[0][i] = geiringer_step_contact_bc(
-                mesh[1][i - 1], mesh[0][i], uv[1][i - 1], n_i, self.v0 * n_i[1]
+                mesh[1][i - 1],
+                mesh[0][i],
+                uv[1][i - 1],
+                n_i,
+                self.v0 * np.dot(self.direction, n_i),
             )
             for k in range(1, N + 1 - i):
                 uv[k][i] = geiringer_step(
@@ -449,12 +466,14 @@ class DiskVelocityField:
 
     def energy_balance(self) -> dict[str, float]:
         """
-        Full-disk loads per unit length from the work equation  Q·v0 = 2·(P + cu·U·L):
+        Full-disk load F per unit length along the push direction (vertical Q,
+        or horizontal H), from the work equation  F·v0 = halves·(P + cu·U·L)
+        with halves = 2 for a vertical push and 1 for a horizontal push:
 
-          Q_stress        — solver's Q (integrated contact stresses)
-          Q_virtual_work  — P = Σ d·A (signed); equals Q_stress when the
+          F_stress        — from the solver's contact stresses
+          F_virtual_work  — P = Σ d·A (signed); equals F_stress when the
                             velocity field is correct (virtual work identity)
-          Q_upper_bound   — P = Σ |d|·A; the upper bound of this mechanism
+          F_upper_bound   — P = Σ |d|·A; the upper bound of this mechanism
           negative_area_fraction — share of the plastic area with d < 0
         """
         pw = self.plastic_work()
@@ -463,10 +482,16 @@ class DiskVelocityField:
         P_jump = self.solver.cu * self.U * L
         P_signed = float(np.sum(pw["d"] * pw["area"]))
         P_abs = float(np.sum(np.abs(pw["d"]) * pw["area"]))
+        if self.horizontal:
+            halves = 1.0
+            F_stress = -self.solver.forces_on_half_disk()["F_h"]
+        else:
+            halves = 2.0
+            F_stress = self.solver.collapse_load_Q()
         return {
-            "Q_stress": self.solver.collapse_load_Q(),
-            "Q_virtual_work": 2.0 * (P_signed + P_jump) / self.v0,
-            "Q_upper_bound": 2.0 * (P_abs + P_jump) / self.v0,
+            "F_stress": F_stress,
+            "F_virtual_work": halves * (P_signed + P_jump) / self.v0,
+            "F_upper_bound": halves * (P_abs + P_jump) / self.v0,
             "negative_area_fraction": float(
                 pw["area"][pw["d"] < 0].sum() / pw["area"].sum()
             ),
