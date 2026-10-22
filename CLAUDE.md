@@ -14,6 +14,7 @@ Managed with `uv` (Python 3.13; numpy and matplotlib declared in `pyproject.toml
 - The `test_*.py` files in the repo root are **not pytest tests** — they are standalone scripts that print tables and/or save PNGs (e.g. `test_mc.py` writes `plot_mc_phi*.png`). Run one with `uv run test_mc_disk_parallel.py`.
 - `plot_*.py` scripts (and some `test_*.py`) regenerate the PNG figures in `plots/` (they use the `Agg` backend, so they save rather than show).
 - `dbg.py` dumps Region I mesh nodes of a disk solve to `dbg.out`.
+- `uv run run_penetration.py` simulates a smooth pipe sinking under its own weight with heave and prints the steps.
 - Format/lint: `ruff format`, `ruff check`.
 
 ## Architecture
@@ -29,6 +30,7 @@ Package `slip_line/`:
   - `MohrCoulombGravityPrandtlSolver` — c-φ strip with self-weight (γ>0), `solve(fit_foundation=...)`, `contact_pressure_curve()`.
   - `DiskPrandtlSolver` / `MohrCoulombDiskPrandtlSolver` — partly-penetrated disk (Tresca / MC). `solve()` returns a **dict** (`B_s`, `theta_max_deg`, `fan_angle_deg`, `Q_per_unit_length`, `Q_over_D`, `sigma_n_at_*`, …), and they provide `forces_on_half_disk()`. Both have `_resize_fan_and_wedge_to_match_region_I()`: Region I is built from the disk surface first, then the fan and Region III are resized to match it. The MC disk solver has a "parallel-β zone" mechanism for deep penetration/high roughness (`parallel_beta_zone` in the result).
 - `velocity.py` — Geiringer velocity field on a Tresca net: `geiringer_step`, `PrandtlVelocityField` (strip) and `DiskVelocityField` (disk), both pushed down at `v0` (the disk also horizontally toward +x with `horizontal=True`, right half only, U = 0; for r > 0 `interface_slip()` gives the slip work against the interface shear, which is in `energy_balance()`); the outer α-line is the velocity discontinuity to rigid soil. `plastic_work_rate` / `DiskVelocityField.energy_balance()` check the sign of the plastic work and the virtual-work balance. `plot_velocity_strip.py` / `plot_velocity_disk.py` plot them with a hodograph.
+- `penetration.py` — `PipePenetration`: quasi-static self-weight sinking of a smooth pipe in small steps `dw`. Each step uses a flat-surface `DiskPrandtlSolver` at the effective embedment (invert below the contact level), raises the surface by the Geiringer upward surface velocity × `dw` (vertical only), scales that increment so the soil volume is conserved, and stops when the collapse load reaches the weight `W`.
 - `plot.py` — matplotlib plotting (`plot_slip_lines`, `plot_disk_slip_lines`, `plot_mc_slip_lines`, …), one per solver type.
 
 Conventions that matter across files:
