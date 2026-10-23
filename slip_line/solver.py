@@ -1110,6 +1110,16 @@ class DiskPrandtlSolver:
           |τ(φ)| = r · cu
       Vertical reaction force per unit length of strip:
           Q = 2·R · ∫_0^{θ_max} (σ_n cos φ + |τ| sin φ) dφ
+
+    Interface shear direction: by default the shear on the soil points
+    toward the disk edge, as in a horizontal push (the disk slides along
+    +t̂ relative to the soil on the right half).  With vertical_shear=True it
+    is that of vertical penetration: the soil slides out toward the edge
+    relative to the disk, the shear on the soil points toward the bottom and
+    the friction on the disk acts upward.  ω then changes sign:
+        ψ_disk(φ) = (π/2 − φ) + arcsin(r)/2
+        σ_n(φ)    = cu·(1 + π − 2φ + arcsin(r) + √(1 − r²))
+    and Q above is consistent with the stress field.
     """
 
     def __init__(
@@ -1118,6 +1128,7 @@ class DiskPrandtlSolver:
         n_fan: int = 20,
         n_disk: int = 30,
         n_radial: int | None = None,
+        vertical_shear: bool = False,
     ):
         self.disk = disk
         self.cu = disk.cu
@@ -1138,6 +1149,9 @@ class DiskPrandtlSolver:
 
         # Roughness angle ω (= arcsin(r)/2) corresponding to full mobilisation.
         self.omega_full = 0.5 * np.arcsin(self.r)
+        # Signed ω: negative for the shear direction of vertical penetration.
+        self.vertical_shear = vertical_shear
+        self.omega_signed = -self.omega_full if vertical_shear else self.omega_full
 
         # If π/2 − θ_max − ω < 0 the corner-fan mechanism is inadmissible.
         # Instead, the interface roughness is reduced on an outer arc so that
@@ -1146,17 +1160,20 @@ class DiskPrandtlSolver:
         #     ω(θ)  = ω_full           for θ ≤ θ_0      (inner zone)
         #     ω(θ)  = π/2 − θ         for θ ∈ (θ_0, θ_max]  (outer zone)
         # so ψ_disk(θ) is piecewise: (π/2 − θ − ω_full) inner, 0 outer.
-        self.theta_0 = np.pi / 2.0 - self.omega_full
+        self.theta_0 = np.pi / 2.0 - self.omega_signed
         self.use_parallel_zone = self.theta_max > self.theta_0 + 1e-12
+        if self.use_parallel_zone and vertical_shear:
+            # ψ_disk = 0 there would need |ω| > ω_full, i.e. more than full roughness.
+            raise ValueError("vertical_shear needs θ_max ≤ π/2 + arcsin(r)/2.")
 
         if self.use_parallel_zone:
             self.psi_edge = 0.0
             self.delta_psi_fan = 0.0
         else:
-            self.psi_edge = (np.pi / 2.0 - self.theta_max) - self.omega_full
+            self.psi_edge = (np.pi / 2.0 - self.theta_max) - self.omega_signed
             self.delta_psi_fan = self.psi_edge - self.psi_B
         # ψ at θ = 0 (bottom) is always with full roughness (since θ_0 > 0 when r<1).
-        self.psi_bot = (np.pi / 2.0) - self.omega_full
+        self.psi_bot = (np.pi / 2.0) - self.omega_signed
 
         # Mesh sizing — derived inside solve() from Region I geometry so
         # the fan_I β-line (zone-II boundary) exactly coincides with the
@@ -1229,7 +1246,7 @@ class DiskPrandtlSolver:
         """Mobilised interface roughness angle ω at disk angle θ."""
         if self.use_parallel_zone and theta > self.theta_0:
             return 0.5 * np.pi - theta
-        return self.omega_full
+        return self.omega_signed
 
     def _psi_disk(self, theta: float) -> float:
         """ψ of the soil at the disk surface at angle θ."""
@@ -1250,15 +1267,15 @@ class DiskPrandtlSolver:
         return cu * (1.0 + 2.0 * psi + np.sqrt(max(0.0, 1.0 - r_eff * r_eff)))
 
     def _tau(self, phi: float) -> float:
-        """Mobilised interface shear magnitude at angle φ: |τ| = r_eff·cu."""
-        return self._r_eff(phi) * self.cu
+        """Mobilised interface shear magnitude at angle φ: |τ| = |r_eff|·cu."""
+        return abs(self._r_eff(phi)) * self.cu
 
     def _phi_of(self, node: Node) -> float:
         """Recover the disk-surface angle φ stored implicitly via node.psi.
 
         Valid only in the inner zone (uniform ω = ω_full).
         """
-        return 0.5 * np.pi - node.psi - self.omega_full
+        return 0.5 * np.pi - node.psi - self.omega_signed
 
     def contact_pressure_curve(self, n: int = 100):
         """Return arrays (phi, sigma_n/cu) for plotting."""
@@ -1296,23 +1313,26 @@ class DiskPrandtlSolver:
           outward normal to the disk (from disk into soil): n̂ = (sin φ, cos φ)
           tangent (from bottom toward corner):              t̂ = (cos φ, -sin φ)
           Soil pushes disk along -n̂ with magnitude σ_n.
-          This is a HORIZONTAL-PUSH problem: the disk slides sideways, so the
-          soil at the right-half contact slides along -t̂ relative to the disk
-          and friction on the disk acts along -t̂ with magnitude |τ| = r·cu.
+          By default this is a HORIZONTAL-PUSH problem: the disk slides
+          sideways, so the soil at the right-half contact slides along -t̂
+          relative to the disk and friction on the disk acts along -t̂ with
+          magnitude |τ| = r·cu (s = 1 below).  With vertical_shear the soil
+          slides out along +t̂ and friction on the disk acts along +t̂ (s = −1).
         Vertical (upward) component on the right half is therefore
-            dF_v = (σ_n cos φ − r·cu · sin φ) · R dφ
+            dF_v = (σ_n cos φ − s·r·cu · sin φ) · R dφ
         Horizontal (outward, +x) component:
-            dF_h = (−σ_n sin φ − r·cu · cos φ) · R dφ
+            dF_h = (−σ_n sin φ − s·r·cu · cos φ) · R dφ
         """
         R = self.R
         tmax = self.theta_max
+        s = -1.0 if self.vertical_shear else 1.0
 
         phi = np.linspace(0.0, tmax, max(2, int(n)))
         sigma_n = np.array([self._sigma_n(p) for p in phi])
         tau     = np.array([self._tau(p)     for p in phi])
 
-        dF_v = sigma_n * np.cos(phi) - tau * np.sin(phi)
-        dF_h = -sigma_n * np.sin(phi) - tau * np.cos(phi)
+        dF_v = sigma_n * np.cos(phi) - s * tau * np.sin(phi)
+        dF_h = -sigma_n * np.sin(phi) - s * tau * np.cos(phi)
 
         F_v = R * float(np.trapezoid(dF_v, phi))
         F_h = R * float(np.trapezoid(dF_h, phi))

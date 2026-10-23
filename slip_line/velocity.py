@@ -331,7 +331,8 @@ class DiskVelocityField:
         disk normal; the soil may slip along the disk.  At the disk bottom
         this fixes U (U = 0 for a horizontal push).  For r > 0 the slip does
         work against the interface shear of the solver's stress field (whose
-        shear direction is that of a horizontal push), see interface_slip().
+        shear direction is that of a horizontal push, or of vertical
+        penetration with vertical_shear=True), see interface_slip().
       • Free surface: no kinematic condition.
 
     Region I's corner β-line is straight and coincides with the fan-I radial,
