@@ -1,6 +1,8 @@
 """
-Quasi-static self-weight penetration of a smooth pipe (disk) into weightless
-Tresca soil, with the heave around the pipe tracked step by step.
+Quasi-static self-weight penetration of a pipe (disk) with roughness r into
+weightless Tresca soil, with the heave around the pipe tracked step by step.
+The interface shear opposes the slip: the soil slides out along the pipe, so
+the friction on the pipe acts upward (DiskPrandtlSolver(vertical_shear=True)).
 
 The pipe is pushed down in small steps dw.  In each step:
 
@@ -49,12 +51,13 @@ class PenetrationState:
 
 
 class PipePenetration:
-    """Smooth pipe of diameter D and weight W sinking into Tresca soil (cu)."""
+    """Pipe of diameter D, roughness r and weight W sinking into Tresca soil (cu)."""
 
     def __init__(
         self,
         D: float = 1.0,
         cu: float = 1.0,
+        r: float = 0.0,
         W: float = 1.0,
         dw: float = 2.5e-5,
         dx: float = 2.5e-4,
@@ -62,14 +65,16 @@ class PipePenetration:
         n_fan: int = 18,
         n_disk: int = 30,
     ):
-        self.D, self.R, self.cu, self.W, self.dw = D, D / 2.0, cu, W, dw
+        self.D, self.R, self.cu, self.r, self.W, self.dw = D, D / 2.0, cu, r, W, dw
         x_max = 1.5 * D if x_max is None else x_max
         self.x = np.arange(0.0, x_max + 0.5 * dx, dx)
         self.n_fan, self.n_disk = n_fan, n_disk
 
     def solver(self, d: float) -> DiskPrandtlSolver:
-        disk = DiskFoundationBoundary(cu=self.cu, D=self.D, p=d / self.D, r=0.0)
-        return DiskPrandtlSolver(disk, n_fan=self.n_fan, n_disk=self.n_disk)
+        disk = DiskFoundationBoundary(cu=self.cu, D=self.D, p=d / self.D, r=self.r)
+        return DiskPrandtlSolver(
+            disk, n_fan=self.n_fan, n_disk=self.n_disk, vertical_shear=True
+        )
 
     def load(self, d: float) -> float:
         """Collapse load V at effective embedment d (closed form, no mesh)."""
