@@ -183,23 +183,34 @@ def plastic_work_rate(triangles, cu: float) -> dict[str, np.ndarray]:
 
     Returns 'xy' (n, 3, 2) vertices, 'area' (n,), 'd' (n,).
     """
-    xy, area, d = [], [], []
-    for tri in triangles:
-        pts = np.array([(nd.x, nd.y) for nd, _ in tri])
-        vel = np.array([alpha_beta_to_xy(nd.psi, u, v) for nd, (u, v) in tri])
-        J = pts[1:] - pts[0]
-        det = J[0, 0] * J[1, 1] - J[0, 1] * J[1, 0]
-        if abs(det) < 1e-14:
-            continue
-        L = np.linalg.solve(J, vel[1:] - vel[0]).T  # L[i, j] = ∂v_i/∂x_j
-        theta = np.mean([nd.psi for nd, _ in tri]) - np.pi / 4.0
-        e_a = np.array([np.cos(theta), np.sin(theta)])
-        e_b = np.array([-np.sin(theta), np.cos(theta)])
-        gamma = e_a @ (L + L.T) @ e_b
-        xy.append(pts)
-        area.append(0.5 * abs(det))
-        d.append(-cu * gamma)
-    return {"xy": np.array(xy), "area": np.array(area), "d": np.array(d)}
+    pts = np.array([[(nd.x, nd.y) for nd, _ in tri] for tri in triangles])
+    psi = np.array([[nd.psi for nd, _ in tri] for tri in triangles])
+    uv = np.array([[uv for _, uv in tri] for tri in triangles])
+    t = psi - np.pi / 4.0
+    vel = np.stack(
+        (
+            uv[..., 0] * np.cos(t) - uv[..., 1] * np.sin(t),
+            uv[..., 0] * np.sin(t) + uv[..., 1] * np.cos(t),
+        ),
+        axis=-1,
+    )
+    J = pts[:, 1:] - pts[:, :1]
+    det = J[:, 0, 0] * J[:, 1, 1] - J[:, 0, 1] * J[:, 1, 0]
+    keep = np.abs(det) >= 1e-14
+    J, dv, det, psi, pts = (
+        J[keep],
+        vel[keep, 1:] - vel[keep, :1],
+        det[keep],
+        psi[keep],
+        pts[keep],
+    )
+    G = np.linalg.solve(J, dv)  # G[j, i] = ∂v_i/∂x_j
+    S = G + np.swapaxes(G, 1, 2)  # L + Lᵀ
+    theta = psi.mean(axis=1) - np.pi / 4.0
+    e_a = np.stack((np.cos(theta), np.sin(theta)), axis=-1)
+    e_b = np.stack((-np.sin(theta), np.cos(theta)), axis=-1)
+    gamma = np.einsum("ni,nij,nj->n", e_a, S, e_b)
+    return {"xy": pts, "area": 0.5 * np.abs(det), "d": -cu * gamma}
 
 
 class PrandtlVelocityField:
