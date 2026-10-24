@@ -49,6 +49,10 @@ normality rule of the upper-bound yield envelope.  Each step:
 
 The left soil (trench wall, or the original surface) is rigid.  x is global,
 with the pipe centre at u; the surface elevation η is positive upward.
+
+A push back toward −x (PipeLateral.reversed) is computed in the mirror image
+x → −x, where it is again a push toward +x: the trench is then in front (its
+rising wall gives α < 0) and the berm behind.
 """
 
 from __future__ import annotations
@@ -260,6 +264,40 @@ class PipeLateral:
         start.alpha = lat._slope(eta, state.x_c, state.x_end - state.x_c)
         return lat, start
 
+    def reversed(self, state: LateralState) -> tuple[PipeLateral, LateralState]:
+        """Model and start state (with its mechanism) for pushing the pipe
+        back toward −x from state, in the mirror image x → −x, where the push
+        is again toward +x.  α of the new front (the trench) is fitted over
+        the passive wedge of the mechanism found there."""
+        lat = PipeLateral(
+            self.D,
+            self.cu,
+            self.r,
+            self.W,
+            -self.x[::-1],
+            self.du,
+            self.n_fan,
+            self.n_disk,
+        )
+        start = LateralState(
+            -state.u,
+            state.w,
+            state.eta[::-1].copy(),
+            -state.x_right,
+            -state.x_left,
+            state.cut[::-1].copy(),
+        )
+        length, guess = self.R, None
+        for _ in range(10):
+            start.alpha = lat._slope(start.eta, start.x_right, length)
+            start.mech = lat.mechanism(start, guess)
+            guess = (start.mech.beta, start.mech.omega)
+            wedge = lat.field(start, *guess).solver.L
+            if abs(wedge - length) < 1e-3:
+                break
+            length = wedge
+        return lat, start
+
     # ------------------------------------------------------------------
     # Geometry
     # ------------------------------------------------------------------
@@ -449,7 +487,8 @@ class PipeLateral:
     def run(self, state: LateralState, distance: float) -> list[LateralState]:
         """Push the pipe `distance` sideways from state; return every state
         (each with its mechanism)."""
-        state.mech = self.mechanism(state)
+        if state.mech is None:
+            state.mech = self.mechanism(state)
         states = [state]
         n = round(distance / self.du)
         for _ in range(n):

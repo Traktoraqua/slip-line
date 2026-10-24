@@ -1,7 +1,9 @@
 """Pipe (D = 1 m, roughness r = 0.8, weight W = 2.8 kN/m) in weightless Tresca
 soil (cu = 1 kPa).  Step 1: it sinks under its own weight from the surface
 (PipePenetration).  Step 2: it is pushed 0.2 m sideways in 1 mm steps while it
-is free to move vertically (PipeLateral, V = W).  Prints both."""
+is free to move vertically (PipeLateral, V = W).  Step 3: it is pushed 40 mm
+back toward -x, still with V = W (the mirror image of a push toward +x).
+Prints all three; H is positive toward +x."""
 
 import numpy as np
 
@@ -27,4 +29,18 @@ for k, s in enumerate(states):
             f"{1e3 * s.u:8.1f} {1e3 * s.w:8.2f} {1e3 * s.d(R):8.2f}"
             f" {1e3 * (s.d(R) - s.w):10.2f} {np.degrees(m.beta):11.2f}"
             f" {np.degrees(s.alpha):12.2f} {m.H:9.3f}"
+        )
+
+rev, back = lat.reversed(states[-1])
+states3 = rev.run(back, 0.04)
+print("\nStep 3, pushed back toward -x with V = W (front = soil level at the")
+print("contact on the -x side, above the original surface):")
+print("  u [mm]   w [mm]   d [mm] front [mm]  beta [deg]  alpha [deg]  H [kN/m]")
+for k, s in enumerate(states3):
+    if k % 5 == 0:
+        m = s.mech
+        print(
+            f"{-1e3 * s.u:8.1f} {1e3 * s.w:8.2f} {1e3 * s.d(R):8.2f}"
+            f" {1e3 * (s.d(R) - s.w):10.2f} {np.degrees(m.beta):11.2f}"
+            f" {np.degrees(s.alpha):12.2f} {-m.H:9.3f}"
         )
