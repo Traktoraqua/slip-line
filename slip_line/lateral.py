@@ -349,11 +349,11 @@ class PipeLateral:
         theta = np.arccos(1.0 - 2.0 * state.d(self.R) / self.D)
         return min(OMEGA_MAX, 0.5 * np.pi - theta - state.alpha - 1e-6)
 
-    def _best_omega(self, state, beta, omega0, span):
+    def _best_omega(self, state, force, beta, omega0, span):
         lo = max(-OMEGA_MAX, omega0 - span)
         hi = min(self._omega_max(state), omega0 + span)
-        omega = _golden(lambda om: self.horizontal_force(state, beta, om)[0], lo, hi)
-        return omega, self.horizontal_force(state, beta, omega)[0]
+        omega = _golden(lambda om: force(beta, om), lo, hi)
+        return omega, force(beta, omega)
 
     def mechanism(
         self,
@@ -362,14 +362,22 @@ class PipeLateral:
     ) -> Mechanism:
         """Mechanism minimising H.  Without a guess (β, ω) the directions are
         scanned first; the local search is recentred until the minimum lies
-        inside its bracket."""
+        inside its bracket.  If the search ends on an invalid net (the
+        minimum lies on the edge of the valid nets), the best valid
+        mechanism it has seen is taken, or the scan is run when it has seen
+        none."""
+        best = [np.inf, 0.0, 0.0]  # lowest H seen, with its β and ω
+
+        def force(b, om):
+            H = self.horizontal_force(state, b, om)[0]
+            if H < best[0]:
+                best[:] = [H, b, om]
+            return H
+
         if guess is None:
-            best = (np.inf, 0.0, 0.0)
             for beta in np.radians(np.arange(-20.0, 86.0, 5.0)):
                 for om in np.linspace(-OMEGA_MAX, self._omega_max(state), 12):
-                    H = self.horizontal_force(state, beta, om)[0]
-                    if H < best[0]:
-                        best = (H, beta, om)
+                    force(beta, om)
             beta, omega = best[1], best[2]
             span_b, span_o = np.radians(5.0), 0.15
         else:
@@ -378,12 +386,12 @@ class PipeLateral:
             lo, hi = beta - span_b, beta + span_b
             om0 = omega
             new_beta = _golden(
-                lambda b, om0=om0: self._best_omega(state, b, om0, span_o)[1],
+                lambda b, om0=om0: self._best_omega(state, force, b, om0, span_o)[1],
                 lo,
                 hi,
                 tol=np.radians(0.01),
             )
-            new_omega, _ = self._best_omega(state, new_beta, omega, span_o)
+            new_omega, _ = self._best_omega(state, force, new_beta, omega, span_o)
             moved = min(new_beta - lo, hi - new_beta) < 0.05 * span_b or (
                 abs(new_omega - omega) > 0.95 * span_o
                 and -OMEGA_MAX < new_omega < self._omega_max(state)
@@ -392,6 +400,13 @@ class PipeLateral:
             if not moved:
                 break
         H, vf = self.horizontal_force(state, beta, omega)
+        if vf is None:
+            if not np.isfinite(best[0]):
+                if guess is None:
+                    raise ValueError("No valid mechanism.")
+                return self.mechanism(state)
+            beta, omega = best[1], best[2]
+            H, vf = self.horizontal_force(state, beta, omega)
         return Mechanism(beta, omega, H, vf.dissipation(), vf.solver.phi_start, vf.U)
 
     # ------------------------------------------------------------------
