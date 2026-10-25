@@ -23,7 +23,9 @@ ends exactly where the pipe leaves the wall, at φ = −β.
 The net is that of DiskPrandtlSolver on this chain, one-sided (all soil flows
 toward +x through the fan and passive wedge at the right edge), with a
 uniform net angle ω: ψ = π/2 − φ − ω.  ω only shapes the mechanism; the
-interface shear enters the dissipation as r·cu·|slip|.  The free surface in
+interface shear enters the dissipation as r·cu·|slip|.  With reversing=True
+the net instead carries the interface friction ±r·cu, reversing where the
+slip does (see PipeLateral).  The free surface in
 front is a straight line from the right contact point, falling away from the
 pipe at the angle α of a least-squares fit to the berm over the passive
 wedge's extent (α = 0 is the flat surface of DiskPrandtlSolver); σ₁ is
@@ -77,9 +79,16 @@ class OneSidedDiskSolver(DiskPrandtlSolver):
     (phi_start < 0 lies left of the invert) with a uniform net angle ω:
     ψ = π/2 − φ − ω, σ = cu·(1 + 2(ψ − α)).  The fan and passive wedge sit at
     the right edge only, the wedge under a free surface falling at angle α
-    (ψ = α); the outer α-line starts at the chain's first node.  Only the net
-    is meant to be used (the contact-stress methods of the parent cover
-    φ ∈ [0, θ_max] under a flat surface).
+    (ψ = α); the outer α-line starts at the chain's first node.
+
+    With phi_switch the interface friction of the net reverses there: ω(φ)
+    goes from +ω below phi_switch to −ω above it, linearly over
+    phi_switch ± |ω|, where ψ = π/2 − phi_switch is constant (partly
+    mobilised friction, |τ| = cu·|sin 2ω(φ)| < cu·sin 2|ω|).  Where
+    π/2 − φ − ω(φ) < α (beyond θ_0) the fan would be negative: on that outer
+    arc ω is reduced so that ψ = α (parallel β-lines, no fan), as in
+    DiskPrandtlSolver.  Only the net is meant to be used (the contact-stress
+    methods of the parent cover φ ∈ [0, θ_max] under a flat surface).
     """
 
     def __init__(
@@ -90,17 +99,42 @@ class OneSidedDiskSolver(DiskPrandtlSolver):
         alpha: float = 0.0,
         n_fan: int = 18,
         n_disk: int = 30,
+        phi_switch: float | None = None,
     ):
         super().__init__(disk, n_fan=n_fan, n_disk=n_disk)
         self.phi_start = float(phi_start)
         self.omega_signed = float(omega)
+        self.phi_switch = phi_switch
         self.alpha = self.psi_B = float(alpha)
         self.use_parallel_zone = False
-        self.psi_edge = 0.5 * np.pi - self.theta_max - self.omega_signed
+        if self._gap(self.phi_start) <= 0.0:
+            raise ValueError("ω too large: no fan anywhere on the contact.")
+        if self._gap(self.theta_max) < -1e-12:
+            self.use_parallel_zone = True
+            lo, hi = self.phi_start, self.theta_max
+            for _ in range(60):
+                mid = 0.5 * (lo + hi)
+                lo, hi = (mid, hi) if self._gap(mid) > 0.0 else (lo, mid)
+            self.theta_0 = 0.5 * (lo + hi)
+        self.psi_edge = self._psi_disk(self.theta_max)
         self.delta_psi_fan = self.psi_edge - self.psi_B
-        self.psi_bot = 0.5 * np.pi - self.phi_start - self.omega_signed
-        if self.delta_psi_fan < 0.0:
-            raise ValueError("ω too large: the corner fan would be negative.")
+        self.psi_bot = self._psi_disk(self.phi_start)
+
+    def _omega_net(self, theta: float) -> float:
+        """ω of the net, before the parallel zone."""
+        if self.phi_switch is None:
+            return self.omega_signed
+        w = abs(self.omega_signed)
+        return self.omega_signed * float(np.clip((self.phi_switch - theta) / w, -1, 1))
+
+    def _gap(self, theta: float) -> float:
+        """π/2 − θ − ω(θ) − α: negative where the fan would be negative."""
+        return 0.5 * np.pi - theta - self._omega_net(theta) - self.alpha
+
+    def _omega_eff(self, theta: float) -> float:
+        if self.use_parallel_zone and theta > self.theta_0:
+            return 0.5 * np.pi - theta - self.alpha
+        return self._omega_net(theta)
 
     def solve(self) -> None:
         """Build the net (without the parent's collapse-load summary)."""
@@ -112,8 +146,20 @@ class OneSidedDiskSolver(DiskPrandtlSolver):
         self._built = True
 
     def _build_disk_surface(self):
+        if self.use_parallel_zone:  # one node exactly on θ_0
+            span = self.theta_max - self.phi_start
+            n_in = max(1, round(self.n_disk * (self.theta_0 - self.phi_start) / span))
+            n_out = max(1, self.n_disk - n_in)
+            thetas = np.concatenate(
+                (
+                    np.linspace(self.theta_max, self.theta_0, n_out + 1),
+                    np.linspace(self.theta_0, self.phi_start, n_in + 1)[1:],
+                )
+            )
+        else:
+            thetas = np.linspace(self.theta_max, self.phi_start, self.n_disk + 1)
         nodes = []
-        for th in np.linspace(self.theta_max, self.phi_start, self.n_disk + 1):
+        for th in thetas:
             x, y = self.disk.position(th)
             psi = self._psi_disk(th)
             sigma = self.cu * (1.0 + 2.0 * (psi - self.alpha))
@@ -200,6 +246,7 @@ class Mechanism:
     work: dict[str, float]  # dissipation parts per unit pipe speed
     phi_start: float  # first contact angle of the chain (rad)
     U: float  # velocity jump along the outer α-line per unit pipe speed
+    phi_switch: float | None = None  # where the net friction reverses (rad)
 
 
 @dataclass
@@ -227,7 +274,19 @@ class LateralState:
 
 
 class PipeLateral:
-    """Pipe of diameter D, roughness r and weight W pushed sideways in Tresca soil."""
+    """Pipe of diameter D, roughness r and weight W pushed sideways in Tresca soil.
+
+    By default the net angle ω is free and chosen with β to minimise H; the
+    net then need not match r, which enters only through the slip work.
+    With reversing=True the net carries the interface friction of r: the
+    shear on the soil, τ = cu·sin 2ω, is +r·cu (toward the edge) where the
+    pipe slides up its face relative to the soil (slip > 0, near the invert)
+    and −r·cu where the soil slides up past the pipe (near the edge), with
+    ω = ±½·asin(r).  The friction reverses at phi_switch, through a
+    partly mobilised zone of constant ψ (OneSidedDiskSolver); phi_switch is
+    placed where the slip of the mechanism's own velocity field is zero,
+    found by bisection for each β.  Only β is then searched.
+    """
 
     def __init__(
         self,
@@ -239,10 +298,13 @@ class PipeLateral:
         du: float = 1e-3,
         n_fan: int = 18,
         n_disk: int = 30,
+        reversing: bool = False,
     ):
         self.D, self.R, self.cu, self.r, self.W, self.du = D, D / 2.0, cu, r, W, du
         self.x = x
         self.n_fan, self.n_disk = n_fan, n_disk
+        self.reversing = reversing
+        self.omega_r = 0.5 * np.arcsin(r)
 
     @classmethod
     def after_penetration(
@@ -269,7 +331,7 @@ class PipeLateral:
         back toward −x from state, in the mirror image x → −x, where the push
         is again toward +x.  α of the new front (the trench) is fitted over
         the passive wedge of the mechanism found there."""
-        lat = PipeLateral(
+        lat = type(self)(
             self.D,
             self.cu,
             self.r,
@@ -278,6 +340,7 @@ class PipeLateral:
             self.du,
             self.n_fan,
             self.n_disk,
+            self.reversing,
         )
         start = LateralState(
             -state.u,
@@ -292,7 +355,7 @@ class PipeLateral:
             start.alpha = lat._slope(start.eta, start.x_right, length)
             start.mech = lat.mechanism(start, guess)
             guess = (start.mech.beta, start.mech.omega)
-            wedge = lat.field(start, *guess).solver.L
+            wedge = lat.field(start, *guess, start.mech.phi_switch).solver.L
             if abs(wedge - length) < 1e-3:
                 break
             length = wedge
@@ -353,17 +416,25 @@ class PipeLateral:
     # Mechanism
     # ------------------------------------------------------------------
 
+    def _phi_start(self, state: LateralState, beta: float) -> float:
+        return -min(beta, self.left_limit(state)) if beta >= 0.0 else -beta
+
     def field(
-        self, state: LateralState, beta: float, omega: float
+        self,
+        state: LateralState,
+        beta: float,
+        omega: float,
+        phi_switch: float | None = None,
     ) -> InclinedDiskVelocityField:
-        """Net and Geiringer field for direction β and net angle ω."""
+        """Net and Geiringer field for direction β and net angle ω (reversing
+        at phi_switch, if given)."""
         R = self.R
-        phi_start = -min(beta, self.left_limit(state)) if beta >= 0.0 else -beta
+        phi_start = self._phi_start(state, beta)
         disk = DiskFoundationBoundary(
             cu=self.cu, D=self.D, p=state.d(R) / self.D, r=self.r
         )
         s = OneSidedDiskSolver(
-            disk, phi_start, omega, state.alpha, self.n_fan, self.n_disk
+            disk, phi_start, omega, state.alpha, self.n_fan, self.n_disk, phi_switch
         )
         if phi_start >= s.theta_max:
             raise ValueError("No contact left.")
@@ -374,10 +445,43 @@ class PipeLateral:
         vf.solve()
         return vf
 
+    def _reversing_field(
+        self, state: LateralState, beta: float
+    ) -> InclinedDiskVelocityField:
+        """Field for direction β whose net friction reverses where its own
+        slip is zero (or does not reverse, if the slip keeps one sign)."""
+        w = self.omega_r
+
+        def slip_at(ps):
+            vf = self.field(state, beta, w, ps)
+            it = vf.interface_slip()
+            s = vf.solver
+            at = np.clip(ps, s.phi_start, s.theta_max)
+            return vf, float(np.interp(at, it["phi"], it["slip"]))
+
+        theta = np.arccos(1.0 - 2.0 * state.d(self.R) / self.D)
+        lo, hi = self._phi_start(state, beta) - w, theta + w
+        for end, sign in ((hi, 1.0), (lo, -1.0)):  # ±ω_r on the whole contact
+            try:
+                vf, g = slip_at(end)
+            except (ValueError, IndexError, FloatingPointError):
+                continue  # not a valid net: the switch lies inside
+            if sign * g >= 0.0:
+                return vf
+        for _ in range(12):  # the slip at the switch falls as it moves up
+            mid = 0.5 * (lo + hi)
+            vf, g = slip_at(mid)
+            lo, hi = (mid, hi) if g > 0.0 else (lo, mid)
+        return vf
+
     def horizontal_force(self, state: LateralState, beta: float, omega: float):
-        """H for direction β and net angle ω (inf if the net is not valid)."""
+        """H for direction β and net angle ω (inf if the net is not valid);
+        with reversing friction ω is ½·asin(r) and the switch is found."""
         try:
-            vf = self.field(state, beta, omega)
+            if self.reversing:
+                vf = self._reversing_field(state, beta)
+            else:
+                vf = self.field(state, beta, omega)
         except (ValueError, IndexError, FloatingPointError):
             return np.inf, None
         D = vf.dissipation()
@@ -388,6 +492,8 @@ class PipeLateral:
         return min(OMEGA_MAX, 0.5 * np.pi - theta - state.alpha - 1e-6)
 
     def _best_omega(self, state, force, beta, omega0, span):
+        if self.reversing:
+            return self.omega_r, force(beta, self.omega_r)
         lo = max(-OMEGA_MAX, omega0 - span)
         hi = min(self._omega_max(state), omega0 + span)
         omega = _golden(lambda om: force(beta, om), lo, hi)
@@ -414,7 +520,12 @@ class PipeLateral:
 
         if guess is None:
             for beta in np.radians(np.arange(-20.0, 86.0, 5.0)):
-                for om in np.linspace(-OMEGA_MAX, self._omega_max(state), 12):
+                omegas = (
+                    [self.omega_r]
+                    if self.reversing
+                    else np.linspace(-OMEGA_MAX, self._omega_max(state), 12)
+                )
+                for om in omegas:
                     force(beta, om)
             beta, omega = best[1], best[2]
             span_b, span_o = np.radians(5.0), 0.15
@@ -445,7 +556,15 @@ class PipeLateral:
                 return self.mechanism(state)
             beta, omega = best[1], best[2]
             H, vf = self.horizontal_force(state, beta, omega)
-        return Mechanism(beta, omega, H, vf.dissipation(), vf.solver.phi_start, vf.U)
+        return Mechanism(
+            beta,
+            omega,
+            H,
+            vf.dissipation(),
+            vf.solver.phi_start,
+            vf.U,
+            vf.solver.phi_switch,
+        )
 
     # ------------------------------------------------------------------
     # Steps
@@ -455,7 +574,7 @@ class PipeLateral:
         """Move the pipe du sideways along the state's mechanism and update
         the soil surface."""
         m = state.mech
-        vf = self.field(state, m.beta, m.omega)
+        vf = self.field(state, m.beta, m.omega, m.phi_switch)
         ds = du / np.cos(m.beta)
         u, w = state.u + du, state.w + du * np.tan(m.beta)
 
@@ -484,16 +603,19 @@ class PipeLateral:
         alpha = self._slope(eta, x_right, vf.solver.L)
         return LateralState(u, w, eta, x_left, x_right, cut, scale=scale, alpha=alpha)
 
-    def run(self, state: LateralState, distance: float) -> list[LateralState]:
-        """Push the pipe `distance` sideways from state; return every state
-        (each with its mechanism)."""
+    def run(
+        self, state: LateralState, distance: float, du: float | None = None
+    ) -> list[LateralState]:
+        """Push the pipe `distance` sideways from state in steps du (default
+        self.du); return every state (each with its mechanism)."""
+        du = self.du if du is None else du
         if state.mech is None:
             state.mech = self.mechanism(state)
         states = [state]
-        n = round(distance / self.du)
+        n = round(distance / du)
         for _ in range(n):
             prev = states[-1]
-            nxt = self.advance(prev, self.du)
+            nxt = self.advance(prev, du)
             nxt.mech = self.mechanism(nxt, guess=(prev.mech.beta, prev.mech.omega))
             states.append(nxt)
         return states
