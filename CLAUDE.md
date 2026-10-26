@@ -17,6 +17,7 @@ Managed with `uv` (Python 3.13; numpy and matplotlib declared in `pyproject.toml
 - `uv run run_penetration.py` simulates a pipe sinking under its own weight with heave (smooth, and r = 0.75) and prints the steps.
 - `uv run run_lateral.py` sinks a rough pipe (r = 0.8, W = 2.8 kN/m), pushes it 0.2 m sideways and then 40 mm back, free to move vertically. `REVERSING` at the top picks the net (True: friction that reverses, ~3 min; False: free net angle, ~7 min).
 - Format/lint: `ruff format`, `ruff check`.
+- Build the manual: `pdflatex manual.tex` twice (BasicTeX, in `/Library/TeX/texbin`); figures come from `plots/`, and listings must be ASCII only.
 
 ## Architecture
 
