@@ -18,6 +18,8 @@
 \usepackage{parskip}
 
 \geometry{left=3cm, right=3cm, top=3cm, bottom=3cm}
+\graphicspath{{plots/}}
+\setlength{\emergencystretch}{3em}  % long code names in running text
 
 \definecolor{codebg}{RGB}{248,248,248}
 \definecolor{codeframe}{RGB}{220,220,220}
@@ -62,7 +64,7 @@
   \large User Manual
 }
 \author{Slip\textunderscore line development}
-\date{May 2026}
+\date{October 2026}
 
 \begin{document}
 
@@ -78,7 +80,7 @@
 The \pkg{} Python package computes slip-line fields and bearing
 capacities for strip foundations and circular disks using the
 \emph{method of characteristics} (MOC).
-Four solver classes cover a range of material models and loading
+Five solver classes cover a range of material models and loading
 conditions:
 
 \begin{center}
@@ -89,6 +91,7 @@ conditions:
 \texttt{PrandtlSolver} & Tresca ($c_u$, weightless) & Strip footing \\
 \texttt{MohrCoulombPrandtlSolver} & Mohr-Coulomb ($c$, $\phi$, weightless) & Strip footing \\
 \texttt{MohrCoulombGravityPrandtlSolver} & Mohr-Coulomb + gravity ($\gamma$) & Strip footing \\
+\texttt{DiskPrandtlSolver} & Tresca ($c_u$, weightless) & Disk/pipe \\
 \texttt{MohrCoulombDiskPrandtlSolver} & Mohr-Coulomb ($c$, $\phi$, weightless) & Disk/punch \\
 \bottomrule
 \end{tabular}
@@ -101,9 +104,23 @@ from slip_line.solver import (
     PrandtlSolver,
     MohrCoulombPrandtlSolver,
     MohrCoulombGravityPrandtlSolver,
+    DiskPrandtlSolver,
     MohrCoulombDiskPrandtlSolver,
 )
 \end{lstlisting}
+
+Three further modules build on the Tresca nets:
+\begin{description}
+  \item[\texttt{velocity.py}] Geiringer velocity fields on the strip
+        and disk nets, with checks of the plastic work and the
+        virtual-work balance (Sect.~\ref{sec:velocity}).
+  \item[\texttt{penetration.py}] A pipe sinking into the soil under its
+        own weight, with the heave beside it tracked step by step
+        (\texttt{PipePenetration}, Sect.~\ref{sec:penetration}).
+  \item[\texttt{lateral.py}] A lateral push of the embedded pipe while
+        it is free to move vertically, as an upper-bound mechanism,
+        and a push back (\texttt{PipeLateral}, Sect.~\ref{sec:lateral}).
+\end{description}
 
 \subsection{Sign conventions and coordinate system}
 
@@ -123,6 +140,16 @@ from slip_line.solver import (
         Mohr-Coulomb is
         $\pbar = p + c\cot\phi$,
         where $p = (\sigma_1+\sigma_3)/2$ is the mean stress.
+  \item On a disk (pipe) the contact point is given by the angle
+        $\varphi$ from the downward axis at the centre, positive
+        toward $+x$; $\varphi = 0$ is the invert.  The tangent
+        $\hat t = (\cos\varphi, -\sin\varphi)$ points from the invert
+        toward the edge, the normal
+        $\hat n = (\sin\varphi, \cos\varphi)$ from the disk into the
+        soil.
+  \item Contact stresses are reported as stresses \emph{from the pipe
+        on the soil}: $\sigma_n$ as compression into the soil, and the
+        signed shear $\tau$ on the soil along $\hat t$.
 \end{itemize}
 
 % ====================================================================
@@ -163,6 +190,23 @@ With gravity (body force $+\gamma\hat{j}$, $y$ downward):
 These are integrated by a predictor–corrector Riemann finite-difference
 step implemented in \texttt{riemann\_step\_mc\_gravity} in
 \texttt{slip\_line/slip\_line\_field.py}.
+
+\subsection{Tresca (undrained) soil}
+
+For $\phi = 0$ the slip lines lie at $\pm\pi/4$ to $\sigma_1$,
+\begin{equation}
+  \text{$\alpha$-line:}\quad \frac{dy}{dx} = \tan\!\left(\psi - \tfrac{\pi}{4}\right),
+  \qquad
+  \text{$\beta$-line:}\quad \frac{dy}{dx} = \tan\!\left(\psi + \tfrac{\pi}{4}\right),
+\end{equation}
+and the Hencky relations for the mean stress $\sigma$ (weightless) are
+\begin{align}
+  \text{Along $\alpha$:} \quad \sigma - 2c_u\psi &= \mathrm{const}, \\
+  \text{Along $\beta$:} \quad \sigma + 2c_u\psi &= \mathrm{const}.
+\end{align}
+The Tresca solvers use \texttt{riemann\_step}; the velocity fields
+(Sect.~\ref{sec:velocity}) and the pipe simulations
+(Sects.~\ref{sec:penetration}–\ref{sec:lateral}) are Tresca only.
 
 \subsection{Prandtl–Hill three-region mechanism}
 
@@ -211,14 +255,23 @@ $\Ngamma(30^\circ)=22.4$).
 \label{sec:install}
 % ====================================================================
 
-The package requires Python~3.10+ and NumPy/Matplotlib:
+The project is managed with
+\href{https://docs.astral.sh/uv/}{uv}: Python~3.13, with NumPy and
+Matplotlib declared in \texttt{pyproject.toml}.  Run scripts from the
+project root; uv creates the environment and installs the dependencies
+on the first run:
 
-\begin{lstlisting}
-pip install numpy matplotlib
+\begin{lstlisting}[language=bash,numbers=none]
+uv run main.py            # interactive: strip footing or disk (Tresca)
+uv run run_penetration.py # pipe sinking under its own weight
+uv run run_lateral.py     # pipe sinking, pushed sideways and back
 \end{lstlisting}
 
-No further installation step is needed; run scripts from the project
-root \texttt{c:\textbackslash Appl\textbackslash Slip\_line\textbackslash}.
+Scripts in the project root import the package directly
+(\texttt{from slip\_line.solver import ...}).  The \texttt{test\_*.py}
+and \texttt{plot\_*.py} files there are standalone scripts that print
+tables or save figures in \texttt{plots/}; they are not a pytest
+suite.
 
 % ====================================================================
 \section{Solver classes and API}
@@ -263,6 +316,14 @@ lines_b = solver.all_beta_lines()    # list of beta-line node lists
 \end{lstlisting}
 
 The analytical result for a smooth footing ($r=0$) is $q = c_u(2+\pi)$.
+
+\textbf{Limitation for $r > 0$.}  Region~I is a uniform-stress zone
+with $\psi_A = \pi/2 - \tfrac12\arcsin r$, which is only consistent for
+a smooth base.  The rough strip footing also has $q = c_u(2+\pi)$
+(Hill mechanism, with the base itself a slip line), but the solver
+returns a lower value (for $r = 1$: $q = c_u(1+\pi/2)$).  Use
+\texttt{PrandtlSolver} with $r = 0$; roughness is handled by the disk
+solvers.
 
 % --------------------------------------------------------------------
 \subsection{\texttt{MohrCoulombPrandtlSolver} — MC strip footing (weightless)}
@@ -348,7 +409,7 @@ Parameter & Type & Description \\
 \subsubsection*{Key methods}
 
 \begin{lstlisting}
-result = solver.solve()    # dict — see below
+result = solver.solve()    # dict - see below
 x, sig = solver.contact_pressure_curve()   # arrays of x and sigma_yy
 \end{lstlisting}
 
@@ -380,6 +441,118 @@ higher accuracy.  Typical values:
 \end{itemize}
 The solver iterates the mesh scaling automatically so that Region~I fits
 the footing exactly; no manual adjustment is needed.
+
+% --------------------------------------------------------------------
+\subsection{\texttt{DiskPrandtlSolver} — Tresca disk / pipe}
+\label{sec:tresca_disk}
+% --------------------------------------------------------------------
+
+A rigid disk (a pipe in plane strain) of diameter $D = 2R$ is pressed
+into weightless Tresca soil to the depth $z = pD$, $0 \le p \le 0.5$.
+The soil touches the disk on $\varphi \in [-\theta_{\max}, \theta_{\max}]$
+with $\theta_{\max} = \arccos(1-2p)$, and the contact half-width at the
+surface is $B_s = D\sqrt{p(1-p)}$.  Only the right half is computed.
+Region~I is built from the disk surface first; the centred fan at the
+contact edge and the passive wedge (Region~III) are then sized to match
+it.
+
+\subsubsection*{Interface roughness and its direction}
+
+With roughness $r = |\tau|/c_u$ the net meets the disk at the angle
+$\omega = \tfrac12\arcsin r$, and on the disk
+\begin{equation}
+  \psi_\text{disk}(\varphi) = \frac{\pi}{2} - \varphi - \omega,
+  \qquad
+  \sigma_n = c_u\bigl(1 + 2\psi_\text{disk} + \sqrt{1-r^2}\bigr),
+  \qquad
+  |\tau| = r\,c_u .
+\end{equation}
+The fan opens by $\Delta\psi = \pi/2 - \theta_{\max} - \omega$.
+
+The sign of $\omega$ sets the direction of the interface shear:
+\begin{itemize}
+  \item \textbf{Default} ($\omega > 0$): the shear on the soil points
+        toward the disk edge, as in a horizontal push.
+  \item \texttt{vertical\_shear=True} ($\omega < 0$): the shear of
+        vertical penetration.  The soil slides out toward the edge
+        relative to the disk, the shear on the soil points toward the
+        invert and the friction on the disk acts upward.
+\end{itemize}
+\texttt{collapse\_load\_Q()} integrates
+\begin{equation}
+  Q = 2R\int_0^{\theta_{\max}}\bigl(\sigma_n\cos\varphi + |\tau|\sin\varphi\bigr)\,d\varphi,
+\end{equation}
+i.e.\ with the friction on the disk acting upward.  That is consistent
+with the stress field only for \texttt{vertical\_shear=True}, where
+\texttt{collapse\_load\_Q()} equals twice the $F_v$ of
+\texttt{forces\_on\_half\_disk()}.
+For the vertical capacity of a rough disk, use
+\texttt{vertical\_shear=True}.
+
+\textbf{Signed roughness.}  A negative $r$ in a problem statement
+(e.g.\ $r = -0.75$) means the shear direction of vertical penetration:
+pass \texttt{r=abs(r)} and \texttt{vertical\_shear=True};
+\texttt{DiskFoundationBoundary} accepts only $0 \le r \le 1$.
+
+\textbf{Parallel zone.}  With the default direction and
+$\theta_{\max} > \theta_0 = \pi/2 - \omega$ (deep penetration and high
+roughness) the fan would be negative.  On the outer arc
+$\varphi > \theta_0$ the roughness is then reduced so that
+$\psi_\text{disk} = 0$ (parallel $\beta$-lines, no fan);
+\texttt{parallel\_beta\_zone} in the result tells when this is used.
+
+\subsubsection*{Constructor}
+
+\begin{lstlisting}
+from slip_line.boundary import DiskFoundationBoundary
+from slip_line.solver   import DiskPrandtlSolver
+
+disk = DiskFoundationBoundary(cu=1.0, D=1.0, p=0.25, r=0.5)
+solver = DiskPrandtlSolver(disk, n_fan=18, n_disk=30,
+                           vertical_shear=True)
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Parameter & Type & Description \\
+\midrule
+\texttt{disk} & \texttt{DiskFoundationBoundary} & $c_u$, $D$, $p = z/D$, $r$ \\
+\texttt{n\_fan}  & int & Fan steps \\
+\texttt{n\_disk} & int & Steps along the contact arc \\
+\texttt{n\_radial} & int & Steps in Region~III (default \texttt{n\_fan}) \\
+\texttt{vertical\_shear} & bool & Shear direction of vertical penetration \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsubsection*{Key methods}
+
+\begin{lstlisting}
+res = solver.solve()                  # dict, see below
+phi, sn, tau = solver.stress_distribution_curve()  # sigma_n, |tau|
+f = solver.forces_on_half_disk()      # F_v, F_h, F_v_total, F_h_total
+\end{lstlisting}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Key & Meaning \\
+\midrule
+\texttt{Q\_per\_unit\_length} & Vertical load $Q$ on the full disk \\
+\texttt{Q\_over\_D}, \texttt{Q\_over\_D\_over\_cu} & $Q/D$, $Q/(Dc_u)$ \\
+\texttt{sigma\_n\_max} & Largest normal contact stress \\
+\texttt{sigma\_n\_at\_bottom}, \texttt{sigma\_n\_at\_edge} & $\sigma_n$ at the invert and the edge \\
+\texttt{theta\_max\_deg}, \texttt{B\_s} & Contact half-angle and half-width \\
+\texttt{fan\_angle\_deg} & Fan opening $\Delta\psi$ \\
+\texttt{parallel\_beta\_zone}, \texttt{theta\_0\_deg} & Parallel zone used, and where it starts \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\texttt{forces\_on\_half\_disk()} integrates the tractions on the right
+half: $F_v$ upward and $F_h$ toward $+x$ on the disk.  The plot helper
+is \texttt{plot\_disk\_slip\_lines(solver)}.
 
 % --------------------------------------------------------------------
 \subsection{\texttt{MohrCoulombDiskPrandtlSolver} — Disk / punch}
@@ -429,8 +602,429 @@ Parameter & Type & Description \\
 
 \begin{lstlisting}
 result = solver.solve()
-print(result['Q_vertical'])    # total vertical force per unit length
+print(result['Q_per_unit_length'])  # vertical force on the full disk
 \end{lstlisting}
+
+The result has the keys of \texttt{DiskPrandtlSolver.solve()}, except
+that \texttt{Q\_over\_D\_over\_cu} is replaced by
+\texttt{Q\_over\_Dc} $= Q/(Dc)$, plus \texttt{Nc\_flat\_smooth}.
+For deep penetration or high roughness it also uses a parallel-$\beta$
+zone (\texttt{parallel\_beta\_zone}).
+
+% ====================================================================
+\section{Velocity fields}
+\label{sec:velocity}
+% ====================================================================
+
+\texttt{slip\_line/velocity.py} builds the velocity field that belongs
+to a Tresca net (associated flow) and checks it against the stress
+field through the plastic work and the virtual-work balance.
+
+\subsection{Geiringer equations}
+
+The velocity is resolved along the slip lines,
+$\mathbf V = u\,\mathbf e_\alpha + v\,\mathbf e_\beta$, with
+\begin{equation}
+  \mathbf e_\alpha = (\cos\theta, \sin\theta), \qquad
+  \mathbf e_\beta = (-\sin\theta, \cos\theta), \qquad
+  \theta = \psi - \pi/4 .
+\end{equation}
+Zero extension rate along both families gives
+\begin{align}
+  \text{Along $\alpha$:} \quad du - v\,d\psi &= 0, \\
+  \text{Along $\beta$:} \quad dv + u\,d\psi &= 0 .
+\end{align}
+Velocity discontinuities can only occur across slip lines; they are
+tangential and have constant magnitude along the line.  The equations
+are integrated node by node with a trapezoidal step
+(\texttt{geiringer\_step}) in the same order as the stress net.
+
+\subsection{Boundary conditions}
+
+\begin{itemize}
+  \item \textbf{Outer $\alpha$-line} (Region~I from the base or invert
+        $\to$ fan $\to$ Region~III): it borders soil at rest, so
+        $v = 0$ on the plastic side and $u = U$, the velocity jump,
+        along the whole line.
+  \item \textbf{Foundation or disk}: the normal velocity equals that of
+        the foundation, $\mathbf V\cdot\hat n = \mathbf V_0\cdot\hat n$;
+        the soil may slip along it.  At the symmetry point this fixes
+        $U$ (strip: $U = v_0/\sin(\psi_A - \pi/4)$, i.e.\ $\sqrt2\,v_0$
+        for a smooth base).
+  \item \textbf{Free surface}: no kinematic condition.
+\end{itemize}
+
+\subsection{Plastic work, interface slip and energy balance}
+
+In each triangle of the net the velocity is linear, the strain rate is
+pure shear $\dot\gamma_{\alpha\beta}$, and the plastic work rate per
+unit area is $d = -c_u\dot\gamma_{\alpha\beta}$
+(\texttt{plastic\_work\_rate}).  $d < 0$ means the velocity field does
+negative work against the stress field there: the two do not form a
+complete solution.
+
+Along a rough disk the slip is
+$\text{slip} = (\mathbf V_0 - \mathbf V)\cdot\hat t$ (disk relative to
+the soil) and the interface work rate is $w = \tau\cdot\text{slip}$
+with $\tau$ the shear of the disk on the soil
+(\texttt{interface\_slip()}).
+
+\texttt{energy\_balance()} evaluates the work equation
+\begin{equation}
+  F\,v_0 = n_h\bigl(P + c_u U L + P_\text{interface}\bigr),
+\end{equation}
+with $L$ the length of the outer $\alpha$-line and $n_h = 2$ halves for a
+vertical push, $1$ for a horizontal push:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Key & Meaning \\
+\midrule
+\texttt{F\_stress} & $F$ from the solver's contact stresses \\
+\texttt{F\_virtual\_work} & $P = \sum d\,A$, $P_\text{interface} = \int w\,ds$ (signed); \\
+ & equals \texttt{F\_stress} when the velocity field is correct \\
+\texttt{F\_upper\_bound} & $P = \sum |d|\,A$, $P_\text{interface} = \int r c_u|\text{slip}|\,ds$ \\
+\texttt{negative\_area\_fraction} & Share of the plastic area with $d < 0$ \\
+\texttt{negative\_interface\_fraction} & Share of the contact arc with $w < 0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+For the vertical disk $d < 0$ in a large part of the plastic area
+(39\,\% at $p = 0.25$, Fig.~\ref{fig:velocity_disk}) even for $r = 0$,
+so the field is not strictly kinematically admissible.
+\texttt{F\_virtual\_work} lies slightly below \texttt{F\_stress}
+(3.631 against 3.639 at $p = 0.25$, \texttt{n\_fan=18, n\_disk=30}) and
+converges to it with a finer mesh; \texttt{F\_upper\_bound} is 4.010.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{velocity_disk_p025.png}
+\caption{Velocity field and hodograph of a smooth disk pushed vertically
+  into Tresca soil, $p = 0.25$ (\texttt{plot\_velocity\_disk.py}).  Red
+  cells: negative plastic work.}
+\label{fig:velocity_disk}
+\end{figure}
+
+\subsection{API}
+
+\begin{lstlisting}
+from slip_line.boundary import DiskFoundationBoundary, FoundationBoundary
+from slip_line.solver   import DiskPrandtlSolver, PrandtlSolver
+from slip_line.velocity import DiskVelocityField, PrandtlVelocityField
+
+# Smooth strip footing pushed down with speed v0
+vf = PrandtlVelocityField(PrandtlSolver(FoundationBoundary(cu=1.0, r=0.0, B=1.0)))
+U = vf.solve()                       # jump along the outer alpha-line
+
+# Disk pushed down (or toward +x with horizontal=True)
+disk = DiskFoundationBoundary(cu=1.0, D=1.0, p=0.25, r=0.5)
+s = DiskPrandtlSolver(disk, n_fan=18, n_disk=30, vertical_shear=True)
+vf = DiskVelocityField(s, v0=1.0, horizontal=False)
+vf.solve()
+eb = vf.energy_balance()             # dict, see the table above
+it = vf.interface_slip()             # 'phi', 'slip', 'tau', 'w'
+pw = vf.plastic_work()               # 'xy', 'area', 'd' per triangle
+\end{lstlisting}
+
+\texttt{PrandtlVelocityField} is meant for $r = 0$ (the strip net is
+only approximate for $r > 0$, Sect.~\ref{sec:tresca}).  A horizontal
+push loads only the right half of the disk; the left half moves away
+from the soil, which separates and stays rigid.  The plot helpers are
+\texttt{plot\_prandtl\_velocity(vf)} and \texttt{plot\_disk\_velocity(vf)}
+(vertical push only).
+
+% ====================================================================
+\section{Pipe penetration under self-weight}
+\label{sec:penetration}
+% ====================================================================
+
+\texttt{PipePenetration} (\texttt{slip\_line/penetration.py}) lets a
+pipe of diameter $D$, roughness $r$ and weight $W$ (per unit length)
+sink quasi-statically into weightless Tresca soil, and tracks the heave
+of the surface beside it.  The interface shear opposes the slip: the
+soil slides out along the pipe, so the friction on the pipe acts upward
+(\texttt{DiskPrandtlSolver} with \texttt{vertical\_shear=True}).
+
+\subsection{Algorithm}
+
+The pipe is pushed down in small steps $\Delta w$.  In each step:
+\begin{enumerate}
+  \item \textbf{Contact.}  The pipe meets the current soil surface at
+        $x_c$.  The slip-line field is that of \texttt{DiskPrandtlSolver}
+        with a \emph{flat} surface at the contact level, i.e.\ at the
+        effective embedment $d$ = invert depth below that level.  Heave
+        raises the contact level, so $d > w$.
+  \item \textbf{Heave.}  The Geiringer field for a unit downward pipe
+        velocity gives the upward velocity $v_\text{up}(x)$ of the free
+        surface (Region~III).  The surface is raised by
+        $v_\text{up}\,\Delta w$; the horizontal component is not used,
+        since the field assumes a flat surface.
+  \item \textbf{Volume.}  The soil is incompressible: the soil pushed
+        down under the pipe equals the heave beside it.  The Geiringer
+        field satisfies this to first order; the heave increment is
+        scaled to remove the discretisation error.
+  \item \textbf{Stop.}  The pipe sinks while the collapse load $V(d)$ is
+        below $W$; the last step is shortened so that $V = W$.
+\end{enumerate}
+
+\subsection{API}
+
+\begin{lstlisting}
+from slip_line.penetration import PipePenetration
+
+sim = PipePenetration(D=1.0, cu=1.0, r=0.8, W=2.8)
+states = sim.run()                   # list of PenetrationState
+s1 = states[-1]                      # equilibrium, V = W
+print(s1.w, s1.d, s1.d - s1.w)       # settlement, embedment, heave
+\end{lstlisting}
+
+Constructor arguments: \texttt{D}, \texttt{cu}, \texttt{r}, \texttt{W},
+the step \texttt{dw} (default $2.5\times10^{-5}$), the surface grid
+spacing \texttt{dx} ($2.5\times10^{-4}$), its extent \texttt{x\_max}
+(default $1.5D$), and \texttt{n\_fan}, \texttt{n\_disk}.
+A \texttt{PenetrationState} has the settlement \texttt{w}, the effective
+embedment \texttt{d}, the contact half-width \texttt{x\_c}, the end of
+the plastic zone \texttt{x\_end}, the load \texttt{V}, the heave
+\texttt{heave} on \texttt{sim.x} and the volume correction
+\texttt{scale}.  \texttt{sim.load(d)} is the collapse load at
+embedment $d$, and \texttt{sim.areas(w, heave)} the volume balance.
+
+\subsection{Results}
+
+$D = 1$\,m, $c_u = 1$\,kPa (\texttt{run\_penetration.py} and step~1 of
+\texttt{run\_lateral.py}):
+
+\begin{center}
+\begin{tabular}{lrrrrr}
+\toprule
+ & $W$ [kN/m] & $w$ [mm] & $w$ without heave [mm] & heave [mm] & $d$ [mm] \\
+\midrule
+Smooth, $r = 0$  & 1.0 & 5.94  & 10.36 & 4.42  & 10.36 \\
+Rough, $r = 0.75$ & 1.4 & 10.25 & 16.52 & 6.26  & 16.52 \\
+Rough, $r = 0.8$  & 2.8 & 46.54 & 73.68 & 27.14 & 73.68 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The capacity depends only on $d$, so the effective embedment at
+equilibrium is the same with and without heave; the heave reduces the
+settlement by 37--43\,\%.
+
+% ====================================================================
+\section{Lateral push of a pipe}
+\label{sec:lateral}
+% ====================================================================
+
+\texttt{PipeLateral} (\texttt{slip\_line/lateral.py}) pushes the
+embedded pipe sideways toward $+x$ in small steps $\Delta u$ while it
+is free to move vertically: the vertical load $V = W$ stays constant.
+The start is the end of a \texttt{PipePenetration} run.  The soil
+surface (berm in front, trench behind) is tracked step by step.  The
+analysis is kinematic (upper bound).
+
+\subsection{Mechanism}
+
+The pipe moves with unit speed along $(\cos\beta, \sin\beta)$, so
+$\beta > 0$ is downward.  Its trailing side separates from the soil
+beyond $\varphi = -\beta$, and the soil touches the pipe on
+$\varphi \in [\varphi_\text{start}, \theta_R]$, $\theta_R$ being the
+right contact angle, with
+\begin{equation}
+  \varphi_\text{start} =
+  \begin{cases}
+    -\min(\beta, \varphi_L) & \beta \ge 0, \\
+    -\beta & \beta < 0 \text{ (the pipe rises and leaves the invert).}
+  \end{cases}
+\end{equation}
+$\varphi_L$ is the largest trailing contact angle.  Against the
+original surface it is the current left contact angle (diving steeper
+than that cuts into the soil, with a velocity jump along the outer
+$\alpha$-line).  Against the trench wall the pipe has cut itself there
+is no limit.
+
+The net (\texttt{OneSidedDiskSolver}) is that of
+\texttt{DiskPrandtlSolver} on this contact chain, but one-sided: all
+soil flows toward $+x$ through a fan and passive wedge at the right
+edge.  On the contact $\psi = \pi/2 - \varphi - \omega$.  The free
+surface in front is a straight line from the right contact point,
+falling away from the pipe at the angle $\alpha$ of a least-squares fit
+to the berm over the passive wedge's extent; there $\psi = \alpha$ and
+$\sigma = c_u\bigl(1 + 2(\psi - \alpha)\bigr)$.
+
+\subsection{Work equation}
+
+The Geiringer field on the net gives the dissipation per unit pipe
+speed,
+\begin{equation}
+  \mathcal{D} = \sum |d|\,A + c_u U L + r c_u \int |\text{slip}|\,ds,
+\end{equation}
+(plastic shear, the jump along the outer $\alpha$-line, interface
+slip).  With $V = W$ constant the work equation gives the horizontal
+force on the full pipe per unit length,
+\begin{equation}
+  H\cos\beta + W\sin\beta = \mathcal{D}
+  \quad\Longrightarrow\quad
+  H = \frac{\mathcal{D} - W\sin\beta}{\cos\beta}.
+\end{equation}
+The pipe moves in the direction $\beta$ (with the net angle $\omega$)
+that minimises $H$, the normality rule of the upper-bound yield
+envelope.  The first step scans $\beta$ from $-20^\circ$ to $85^\circ$;
+later steps search locally around the previous mechanism
+(golden-section search).  If the search ends on an invalid
+(incomplete) net, the best valid mechanism it has seen is used.
+
+\subsection{Net angle: free or reversing friction}
+
+\textbf{Free net angle} (default).  $\omega$ is chosen with $\beta$ to
+minimise $H$.  The net then need not match $r$: it is nearly smooth
+($|\omega| \lesssim 10^\circ$), and $r$ enters only through the slip
+work.
+
+\textbf{Reversing friction} (\texttt{reversing=True}).  The net carries
+the interface friction, $\tau = c_u\sin2\omega = \pm r c_u$.  The slip
+changes sign along the pipe: near the invert the pipe slides toward
+the edge relative to the soil (slip $> 0$), near the edge the soil
+slides up past the pipe (slip $< 0$).  A uniform $\omega$ cannot
+match both, so the friction reverses at $\varphi_s$:
+\begin{equation}
+  \omega(\varphi) = \omega_r\,
+  \operatorname{clip}\!\left(\frac{\varphi_s - \varphi}{\omega_r}, -1, 1\right),
+  \qquad \omega_r = \tfrac12\arcsin r .
+\end{equation}
+In the transition $\varphi_s \pm \omega_r$ the angle
+$\psi = \pi/2 - \varphi_s$ is constant and the friction is only partly
+mobilised: the soil sticks to the pipe there.  $\varphi_s$ is placed
+where the slip of the mechanism's own velocity field is zero, found by
+bisection for each $\beta$ (if the slip keeps one sign, the friction
+does not reverse); only $\beta$ is then searched.  The result is
+self-consistent: the friction nowhere acts against the slip, and $H$
+is lower than with the free net.
+
+In both modes $\omega$ is reduced on the outer arc where the fan would
+be negative ($\pi/2 - \varphi - \omega < \alpha$), so that
+$\psi = \alpha$ there (parallel zone, as in \texttt{DiskPrandtlSolver}).
+
+\subsection{Surface update}
+
+In each step the pipe moves $\Delta u$ sideways and
+$\Delta u\tan\beta$ down (path length $\Delta s = \Delta u/\cos\beta$).
+The free surface in front rises by the Geiringer velocity through the
+sloping surface times $\Delta s$
+($v_\text{up} + v_x\tan\alpha$ per unit width), and the soil the pipe
+moves into is removed; the rise is scaled so that the soil volume is
+conserved.  $\alpha$ is then refitted to the new surface.  The soil on
+the left (trench wall or original surface) is rigid, and the trench
+behind the pipe stays open.
+
+\subsection{Push back}
+
+\texttt{reversed(state)} sets up a push back toward $-x$ from a state.
+It is computed in the mirror image $x \to -x$, where it is again a push
+toward $+x$: the trench is then in front (its rising wall gives
+$\alpha < 0$) and the berm behind.  Map $u$, $x$ and $H$ back with a
+change of sign.  At the turn the push starts with $H > 0$ toward $+x$,
+i.e.\ a holding force.
+
+\subsection{Consistency with step 1 and step length}
+
+With reversing friction and a flat surface the one-sided mechanism
+carries $V = 2.69$\,kN/m at $H = 0$ (\texttt{n\_disk=30}; 2.70 with
+\texttt{n\_disk=90}), where the stress solution of the penetration step
+gives 2.80.  The stress solution thus overestimates the rough pipe's
+vertical capacity by a few per cent.  $H$ is therefore negative at the
+start of the push ($-0.29$\,kN/m with reversing friction,
+$-0.14$\,kN/m with the free net), and the direction changes fast
+during the first millimetres.
+\texttt{run(..., du=...)} is therefore called with 0.25\,mm steps for
+the first 50\,mm (and the first 10\,mm of the push back), and 1\,mm
+steps after that.  With halved steps the results change by about 2\,\%
+with reversing friction ($\beta$ jumps by $\sim1^\circ$ when
+$\varphi_s$ moves between mesh nodes) and by less than 0.1\,\% with the
+free net.
+
+\subsection{API}
+
+\begin{lstlisting}
+from slip_line.lateral import PipeLateral
+from slip_line.penetration import PipePenetration
+
+sim = PipePenetration(D=1.0, cu=1.0, r=0.8, W=2.8)
+s1 = sim.run()[-1]
+
+lat, start = PipeLateral.after_penetration(sim, s1, du=1e-3, reversing=True)
+states = lat.run(start, 0.05, du=0.25e-3)     # first 50 mm
+states += lat.run(states[-1], 0.15)[1:]       # to u = 200 mm
+
+rev, back = lat.reversed(states[-1])          # mirror image
+states3 = rev.run(back, 0.01, du=0.25e-3)
+states3 += rev.run(states3[-1], 0.03)[1:]     # 40 mm back
+
+s = states[-1]
+m = s.mech                                    # Mechanism
+print(s.u, s.w, s.d(lat.R), m.beta, m.H)      # u = -s.u, H = -m.H for states3
+\end{lstlisting}
+
+\texttt{PipeLateral(D, cu, r, W, x, du=1e-3, n\_fan=18, n\_disk=30,
+reversing=False)}; \texttt{after\_penetration(sim, state, x\_min=-1.5,
+x\_max=2.5, **kw)} builds the model and start state (the right-half
+heave mirrored to the left) on a surface grid from \texttt{x\_min} to
+\texttt{x\_max}.
+
+A \texttt{LateralState} has the displacement \texttt{u}, the invert
+depth \texttt{w}, the surface \texttt{eta} (positive upward) on
+\texttt{lat.x}, the contact ends \texttt{x\_left}, \texttt{x\_right},
+the berm slope \texttt{alpha} and the mechanism \texttt{mech};
+\texttt{d(R)} is the effective embedment below the right contact level.
+A \texttt{Mechanism} has \texttt{beta}, \texttt{omega}, \texttt{H}, the
+dissipation parts \texttt{work} (\texttt{plastic}, \texttt{jump},
+\texttt{interface}, \texttt{total}), \texttt{phi\_start}, \texttt{U} and
+\texttt{phi\_switch} ($\varphi_s$, or \texttt{None}).
+
+\subsection{Results}
+
+\texttt{run\_lateral.py}: $D = 1$\,m, $c_u = 1$\,kPa, $r = 0.8$,
+$W = 2.8$\,kN/m.  Step~1 ends at $w = 46.5$\,mm.  Step~2 pushes the pipe
+200\,mm toward $+x$, step~3 40\,mm back.  $H$ is positive toward $+x$;
+``berm'' is the soil level at the right contact above the original
+surface.  Reversing friction:
+
+\begin{center}
+\begin{tabular}{rrrrrr}
+\toprule
+$u$ [mm] & $w$ [mm] & berm [mm] & $\beta$ [$^\circ$] & $\alpha$ [$^\circ$] & $H$ [kN/m] \\
+\midrule
+\multicolumn{6}{l}{\emph{Step 2, toward $+x$}} \\
+0   & 46.5  & 27.1  & 62.3 & 4.2  & $-0.285$ \\
+10  & 58.7  & 37.3  & 41.2 & 3.1  & 0.087 \\
+50  & 81.8  & 64.7  & 26.2 & 5.8  & 0.362 \\
+100 & 105.4 & 97.2  & 24.0 & 10.5 & 0.565 \\
+150 & 126.7 & 129.2 & 22.9 & 13.4 & 0.733 \\
+200 & 146.8 & 165.0 & 21.1 & 15.1 & 0.892 \\
+\midrule
+\multicolumn{6}{l}{\emph{Step 3, back toward $-x$}} \\
+200 & 146.8 & & 23.5 & $-24.1$ & 0.194 \\
+190 & 151.8 & & 27.2 & $-6.0$  & $-0.236$ \\
+180 & 156.7 & & 25.6 & 1.7     & $-0.385$ \\
+170 & 161.3 & & 23.4 & 5.3     & $-0.512$ \\
+160 & 165.4 & & 21.9 & 6.7     & $-0.636$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+In step~3 $\beta$ and $\alpha$ are given in the mirror image (the pipe
+moves toward $-x$ and $\beta$ degrees down).  The pipe dives steeply
+at first and then settles at $\beta \approx 21^\circ$ while the berm in
+front grows; $H$ rises steadily as the embedment grows.
+At the turn the pipe is held by $H = +0.19$\,kN/m; $H$ passes zero
+after about 1.4\,mm of the push back.
+
+With the free net (\texttt{REVERSING = False} in
+\texttt{run\_lateral.py}) the pipe sinks less and $H$ is higher: at
+$u = 200$\,mm $w = 130.7$\,mm, $\beta = 18^\circ$, $H = 1.00$\,kN/m;
+in the push back $H = 0.25$\,kN/m at the turn and $-0.66$\,kN/m at
+$u = 160$\,mm, with $w = 148.7$\,mm.
 
 % ====================================================================
 \section{Plotting}
@@ -463,16 +1057,19 @@ plt.show()
 \subsection{Built-in plot helpers}
 
 \begin{lstlisting}
-from slip_line.plot import plot_mc_slip_lines, plot_mc_disk_slip_lines
+from slip_line.plot import (
+    plot_slip_lines,          # PrandtlSolver, plot_slip_lines(solver, q)
+    plot_mc_slip_lines,       # MohrCoulombPrandtlSolver
+    plot_disk_slip_lines,     # DiskPrandtlSolver (net and sigma_n)
+    plot_mc_disk_slip_lines,  # MohrCoulombDiskPrandtlSolver
+    plot_prandtl_velocity,    # PrandtlVelocityField
+    plot_disk_velocity,       # DiskVelocityField (vertical push)
+)
 
-# Strip footing (MohrCoulombPrandtlSolver)
 fig = plot_mc_slip_lines(solver, show=True)
-
-# Disk footing (MohrCoulombDiskPrandtlSolver)
-fig = plot_mc_disk_slip_lines(solver, show=True)
 \end{lstlisting}
 
-Both functions return a \texttt{matplotlib.figure.Figure} that can be
+The functions return a \texttt{matplotlib.figure.Figure} that can be
 saved:
 \begin{lstlisting}
 fig.savefig('result.png', dpi=140, bbox_inches='tight')
@@ -510,22 +1107,34 @@ q / cu = 5.1416  (exact = 5.1416)
 \end{lstlisting}
 
 % --------------------------------------------------------------------
-\subsection{Example 2: Rough Tresca footing ($r = 1$)}
+\subsection{Example 2: Rough Tresca disk — direction of the interface shear}
 \label{ex:tresca_rough}
 % --------------------------------------------------------------------
 
-A fully rough foundation ($\tau = c_u$) at the base corresponds to
-$r = 1$.  The fan rotation is then $\Delta\psi = \pi/4$ instead of
-$\pi/2$, so $q = c_u(1 + \pi/2 + \sqrt{2}) \approx 4.98\,c_u$.
+A pipe with $D = 1$, $r = 0.5$ embedded to $p = 0.25$ in Tresca soil.
+With the shear direction of vertical penetration the fan is wider
+($\Delta\psi = 45^\circ$ against $15^\circ$), the capacity is higher,
+and \texttt{collapse\_load\_Q()} agrees with the integrated contact
+forces (Sect.~\ref{sec:tresca_disk}).  (For a rough \emph{strip}, see
+the limitation in Sect.~\ref{sec:tresca}.)
 
 \begin{lstlisting}
-from slip_line.boundary import FoundationBoundary
-from slip_line.solver   import PrandtlSolver
+from slip_line.boundary import DiskFoundationBoundary
+from slip_line.solver   import DiskPrandtlSolver
 
-fdn = FoundationBoundary(cu=1.0, r=1.0, B=1.0)
-s   = PrandtlSolver(foundation=fdn, n_fan=24)
-q   = s.solve()
-print(f"q / cu = {q:.4f}")
+for vs in (False, True):
+    disk = DiskFoundationBoundary(cu=1.0, D=1.0, p=0.25, r=0.5)
+    s = DiskPrandtlSolver(disk, n_fan=18, n_disk=30, vertical_shear=vs)
+    res = s.solve()
+    f = s.forces_on_half_disk()
+    print(f"vertical_shear={vs!s:5}  fan = {res['fan_angle_deg']:5.2f} deg"
+          f"  Q = {res['Q_per_unit_length']:.4f}  2*F_v = {f['F_v_total']:.4f}")
+\end{lstlisting}
+
+\textbf{Expected output:}
+\begin{lstlisting}[numbers=none]
+vertical_shear=False  fan = 15.00 deg  Q = 3.3195  2*F_v = 2.8195
+vertical_shear=True   fan = 45.00 deg  Q = 4.2264  2*F_v = 4.2264
 \end{lstlisting}
 
 % --------------------------------------------------------------------
@@ -551,9 +1160,9 @@ for phi_deg in [20, 30, 40]:
 
 \textbf{Expected output:}
 \begin{lstlisting}[numbers=none]
-phi=20  q/c = 14.8342  Nc_analyt = 14.8347  error = 5e-04
-phi=30  q/c = 30.1396  Nc_analyt = 30.1396  error = 0e+00
-phi=40  q/c = 75.3100  Nc_analyt = 75.3197  error = 9e-03
+phi=20  q/c = 14.8347  Nc_analyt = 14.8347  error = 1.78e-15
+phi=30  q/c = 30.1396  Nc_analyt = 30.1396  error = 1.42e-14
+phi=40  q/c = 75.3131  Nc_analyt = 75.3131  error = 2.84e-14
 \end{lstlisting}
 
 % --------------------------------------------------------------------
@@ -593,11 +1202,11 @@ for gBc in [1.0, 2.5, 5.0, 10.0]:
 
 \textbf{Expected output} (Vesic reference: $\Ngamma = 22.4$):
 \begin{lstlisting}[numbers=none]
-gB/c   Q/cB    N_gamma
- 1.0   42.864   25.448
- 2.5   58.709   22.914
- 5.0   82.507   20.933
-10.0  128.100   19.596
+ gB/c      Q/cB   N_gamma
+  1.0   42.8641    25.448
+  2.5   58.7089    22.855
+  5.0   82.5066    20.947
+ 10.0  126.6054    19.293
 \end{lstlisting}
 
 The slight decrease with increasing $\gamma B/c$ reflects the residual
@@ -701,7 +1310,13 @@ for p in [0.25, 0.50]:
         n_fan=24, n_disk=40, n_radial=24,
     )
     res = s.solve()
-    print(f"p = {p:.2f}   Q_v = {res['Q_vertical']:.4f}")
+    print(f"p = {p:.2f}   Q = {res['Q_per_unit_length']:.4f}")
+\end{lstlisting}
+
+\textbf{Expected output:}
+\begin{lstlisting}[numbers=none]
+p = 0.25   Q = 11.3973
+p = 0.50   Q = 12.2839
 \end{lstlisting}
 
 % --------------------------------------------------------------------
@@ -709,7 +1324,7 @@ for p in [0.25, 0.50]:
 \label{ex:convergence}
 % --------------------------------------------------------------------
 
-Check how $N_c$ converges as the mesh is refined.
+Check how $N_c$ depends on the mesh.
 
 \begin{lstlisting}
 import numpy as np
@@ -723,6 +1338,43 @@ for n in [4, 8, 12, 16, 24, 32, 48]:
     s  = MohrCoulombPrandtlSolver(c=1.0, phi=phi, B=1.0, n_fan=n)
     Nc = s.solve()
     print(f"{n:>6}  {Nc:>10.6f}  {abs(Nc-Nc_ref):>10.2e}")
+\end{lstlisting}
+
+Every mesh gives $N_c = 30.139628$: the weightless field is exact for
+any \texttt{n\_fan}, and the error of $2.8\times10^{-5}$ is the rounding
+of \texttt{Nc\_ref}.  Mesh refinement matters for the gravity solver
+(Sect.~\ref{ex:gravity}) and the disk solvers.
+
+% --------------------------------------------------------------------
+\subsection{Example 9: Work balance of a disk velocity field}
+\label{ex:energy}
+% --------------------------------------------------------------------
+
+Compare the load from the contact stresses with the work of the
+Geiringer field for a smooth disk and for a rough disk with the shear
+direction of vertical penetration (Sect.~\ref{sec:velocity}).
+
+\begin{lstlisting}
+from slip_line.boundary import DiskFoundationBoundary
+from slip_line.solver   import DiskPrandtlSolver
+from slip_line.velocity import DiskVelocityField
+
+for r in (0.0, 0.5):
+    disk = DiskFoundationBoundary(cu=1.0, D=1.0, p=0.25, r=r)
+    s = DiskPrandtlSolver(disk, n_fan=18, n_disk=30, vertical_shear=True)
+    vf = DiskVelocityField(s, v0=1.0)
+    vf.solve()
+    e = vf.energy_balance()
+    print(f"r = {r}  stress {e['F_stress']:.3f}"
+          f"  virtual work {e['F_virtual_work']:.3f}"
+          f"  upper bound {e['F_upper_bound']:.3f}"
+          f"  d < 0 on {100 * e['negative_area_fraction']:.0f} %")
+\end{lstlisting}
+
+\textbf{Expected output:}
+\begin{lstlisting}[numbers=none]
+r = 0.0  stress 3.639  virtual work 3.631  upper bound 4.010  d < 0 on 39 %
+r = 0.5  stress 4.226  virtual work 4.214  upper bound 4.577  d < 0 on 37 %
 \end{lstlisting}
 
 % ====================================================================
@@ -739,11 +1391,22 @@ File & Contents \\
 \texttt{slip\_line/slip\_line\_field.py} & \texttt{Node} dataclass, Riemann steps \\
 \texttt{slip\_line/boundary.py}         & Boundary-condition dataclasses \\
 \texttt{slip\_line/yield\_function.py}  & Tresca and Mohr-Coulomb yield functions \\
+\texttt{slip\_line/velocity.py}         & Velocity fields, plastic work, work balance \\
+\texttt{slip\_line/penetration.py}      & \texttt{PipePenetration}: pipe sinking under its weight \\
+\texttt{slip\_line/lateral.py}          & \texttt{PipeLateral}: lateral push and push back \\
 \texttt{slip\_line/plot.py}             & Built-in figure helpers \\
+\midrule
+\texttt{main.py}                       & Interactive program (Tresca strip or disk) \\
+\texttt{run\_penetration.py}           & Pipe sinking, smooth and $r = 0.75$ \\
+\texttt{run\_lateral.py}               & Pipe sinking, lateral push and push back \\
+\texttt{plot\_velocity\_strip.py}       & Velocity field figure — smooth strip \\
+\texttt{plot\_velocity\_disk.py}        & Velocity field figure — disk \\
 \texttt{plot\_mc\_gravity.py}           & Demo script — gravity parametric study \\
 \texttt{plot\_mc\_disk\_case.py}        & Demo script — disk footing \\
-\texttt{test\_mc.py}                    & Regression tests — MC strip \\
-\texttt{test\_mc\_disk.py}              & Regression tests — MC disk \\
+\texttt{plot\_disk\_*.py}              & Tresca disk forces and fields vs.\ embedment \\
+\texttt{test\_mc.py}                    & Check script — MC strip (not pytest) \\
+\texttt{test\_mc\_disk.py}              & Check script — MC disk (not pytest) \\
+\texttt{plots/}                        & Generated figures \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -773,9 +1436,30 @@ File & Contents \\
         $\gamma B/c \approx 2$–$5$ for the most accurate extraction.
 
   \item[Disk solver \texttt{KeyError}:]
-        The disk solver returns keys specific to the vertical/horizontal
-        decomposition.  Print \texttt{result.keys()} to inspect all
-        available quantities.
+        The vertical load is \texttt{result['Q\_per\_unit\_length']}.
+        Print \texttt{result.keys()} to inspect all available
+        quantities.
+
+  \item[Roughness ratio r must be in {[0, 1]}:]
+        A negative $r$ means the shear direction of vertical
+        penetration: use \texttt{r=abs(r)} with
+        \texttt{vertical\_shear=True} (Sect.~\ref{sec:tresca_disk}).
+
+  \item[\texttt{Plastic zone reaches x\_max}:]
+        The surface grid of \texttt{PipePenetration} or
+        \texttt{PipeLateral} is too short for the mechanism; increase
+        \texttt{x\_max} (or \texttt{x\_max} in
+        \texttt{after\_penetration}).
+
+  \item[\texttt{No valid mechanism} in \texttt{PipeLateral}:]
+        No direction $\beta$ in the scan gave a complete net at this
+        geometry, so the one-sided net cannot model it.
+
+  \item[$\beta$ jumps from step to step with reversing friction:]
+        The switch $\varphi_s$ moves between nodes of the contact
+        chain, and $\beta$ follows by about $1^\circ$; the results
+        change by about 2\,\% with halved steps
+        (Sect.~\ref{sec:lateral}).
 \end{description}
 
 % ====================================================================
