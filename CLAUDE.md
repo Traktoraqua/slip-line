@@ -16,7 +16,7 @@ Managed with `uv` (Python 3.13; numpy and matplotlib declared in `pyproject.toml
 - `dbg.py` dumps Region I mesh nodes of a disk solve to `dbg.out`.
 - `uv run run_penetration.py` simulates a pipe sinking under its own weight with heave (smooth, and r = 0.75) and prints the steps.
 - `uv run run_lateral.py` sinks a rough pipe (r = 0.8, W = 2.8 kN/m), pushes it 0.2 m sideways and then 40 mm back, free to move vertically. `REVERSING` at the top picks the net (True: friction that reverses, ~3 min; False: free net angle, ~7 min).
-- Format/lint: `ruff format`, `ruff check`.
+- Format/lint: `ruff format`, `ruff check` (ruff is a global Homebrew install, not a project dependency). The repo is not ruff-clean yet (`ruff check` reports ~94 findings, `ruff format` would rewrite 20 files), so run ruff only on the files you change and keep any repo-wide cleanup in its own commit.
 - Build the manual: `pdflatex manual.tex` twice (BasicTeX, in `/Library/TeX/texbin`; use `-output-directory` in the scratchpad to keep build files out of the repo). Figures come from `plots/` (`\graphicspath`), and listings must be ASCII only. The Read tool cannot render PDF pages here (no poppler); render them to PNG with a small Swift/PDFKit script (`swift` is available) to check the layout.
 
 ## Architecture
@@ -43,6 +43,14 @@ Conventions that matter across files:
 - Only the right half (x ≥ 0) is computed; plotting mirrors it.
 - **Signed roughness in requests:** the user writes a negative `r` (e.g. r = −0.75) for the interface shear direction of vertical penetration. `DiskFoundationBoundary` only accepts 0 ≤ r ≤ 1, so this means `r=abs(r)` with `DiskPrandtlSolver(..., vertical_shear=True)`.
 - **Contact stresses are shown as stresses from the pipe on the soil** (the user is a geotechnical engineer): σ_n as compression into the soil, and for penetration τ on the soil pointing toward the invert. `stress_distribution_curve()` returns σ_n and |τ|; `forces_on_half_disk()` gives forces on the disk; `interface_slip()["tau"]` is the signed shear on the soil along t = (cos φ, −sin φ).
+
+## Known issues
+
+`VIDERE_ARBEID.md` (Norwegian) lists results that are known to be wrong or uncertain, literature checks and planned work, in a recommended order. Read the relevant item before changing the affected code, and update the file when an item is resolved. The ones most likely to bite:
+
+- `main.py`'s strip option defaults to r = 1.0, which gives the wrong `PrandtlSolver` answer (see above).
+- `plot_disk_Fv_vs_p.py`, `plot_disk_Fv_Fh_vs_p.py` and `plot_disk_forces_vs_z.py` use the default (horizontal-push) shear direction for r > 0, although the figures are labelled vertical resistance; so does `main.py` for a rough disk.
+- Example 4 in `manual.tex` extracts Nγ with the half-width B, which gives twice the usual Nγ; the comparison with Vesic there is not valid.
 
 ## Repo notes
 
