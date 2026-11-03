@@ -16,7 +16,7 @@ Managed with `uv` (Python 3.13; numpy and matplotlib declared in `pyproject.toml
 - `dbg.py` dumps Region I mesh nodes of a disk solve to `dbg.out`.
 - `uv run run_penetration.py` simulates a pipe sinking under its own weight with heave (smooth, and r = 0.75) and prints the steps.
 - `uv run run_lateral.py` sinks a rough pipe (r = 0.8, W = 2.8 kN/m), pushes it 0.2 m sideways and then 40 mm back, free to move vertically. `REVERSING` at the top picks the net (True: friction that reverses, ~3 min; False: free net angle, ~7 min).
-- Format/lint: `ruff format`, `ruff check` (ruff is a global Homebrew install, not a project dependency). All files are `ruff format`-clean and have the safe `ruff check --fix` fixes, so format the files you change before committing. `ruff check` still reports 39 findings (35 C408 `dict(...)` calls, 2 BLE001, 2 RUF046) that need `--unsafe-fixes` or hand edits; fix those in their own commit, not mixed with real changes.
+- Format/lint: `ruff format`, `ruff check` (ruff is a global Homebrew install, not a project dependency). The whole repo passes both `ruff format --check` and `ruff check`; keep it that way by running both on the files you change before committing.
 - Build the manual: `pdflatex manual.tex` twice (BasicTeX, in `/Library/TeX/texbin`; use `-output-directory` in the scratchpad to keep build files out of the repo). Figures come from `plots/` (`\graphicspath`), and listings must be ASCII only. The Read tool cannot render PDF pages here (no poppler); render them to PNG with a small Swift/PDFKit script (`swift` is available) to check the layout.
 
 ## Architecture

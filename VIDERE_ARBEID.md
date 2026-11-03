@@ -139,7 +139,7 @@ Dataene til dashbordet ble eksportert med skript og pickle-filer i en midlertidi
 - Gjenbruk geometrien til nettet mellom nabosteg.
 
 ### 3.10 Rydding
-- **ruff:** De trygge rettingene fra `ruff check --fix` er gjort (3.11.2026, samme utskrift fra alle skriptene før og etter). Det er 39 funn igjen: 35 × C408 (`dict(...)` i stedet for `{...}`), 2 × BLE001 (`except Exception`) og 2 × RUF046. De krever `--unsafe-fixes` eller retting for hånd; ta det i én egen commit, så ikke ekte endringer drukner. `ruff format` er kjørt på alle filene (3.11.2026).
+- **ruff:** Ferdig (3.11.2026). `ruff format` og `ruff check` gir ingen funn. Alle skriptene gir samme utskrift og de samme figurene som før. De to `except Exception` i Region I i skivene fanger nå bare numeriske feil, så programmeringsfeil ikke lenger gir et stille, ufullstendig nett.
 - **Gamle skript:** vurder å fjerne eller slå sammen `dbg.py`, `test_disk2.py` og liknende.
 - **`solver.py`:** ~2000 linjer; kan deles opp (stripe, skive, Mohr-Coulomb).
 - **Lokale endringer:** bestem hva som skal skje med de endrede `plots/mc_gravity_*.png` og `manual.pdf`.
