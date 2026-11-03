@@ -1,10 +1,11 @@
 """Regenerate flat foundation plots after Region I fix."""
+
 import matplotlib
 
 matplotlib.use("Agg")
 from pathlib import Path
 
-PLOTS = Path(__file__).parent / 'plots'
+PLOTS = Path(__file__).parent / "plots"
 PLOTS.mkdir(exist_ok=True)
 
 from slip_line.boundary import FoundationBoundary
@@ -15,7 +16,7 @@ from slip_line.solver import PrandtlSolver
 fdn = FoundationBoundary(cu=1.0, r=0.0, B=2.0)
 solver = PrandtlSolver(fdn, n_fan=18)
 q = solver.solve()
-print(f"Smooth: q/cu = {q:.6f}  (pi+2 = {3.141592653589793+2:.6f})")
+print(f"Smooth: q/cu = {q:.6f}  (pi+2 = {3.141592653589793 + 2:.6f})")
 fig = plot_slip_lines(solver, q, show=False)
 fig.savefig(PLOTS / "plot_smooth.png", dpi=120, bbox_inches="tight")
 

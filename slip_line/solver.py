@@ -95,9 +95,15 @@ class PrandtlSolver:
         self.L = self.n_radial * self.h
 
         # Storage
-        self.region_III_nodes: list[list[Node]] = []   # [j][k] j=depth row, k=node along row
-        self.region_II_nodes:  list[list[Node]] = []   # [k][j] k=fan radial index, j=radial step
-        self.region_I_nodes:   list[list[Node]] = []   # [k][m] same layout as fan, m=step along α toward foundation
+        self.region_III_nodes: list[
+            list[Node]
+        ] = []  # [j][k] j=depth row, k=node along row
+        self.region_II_nodes: list[
+            list[Node]
+        ] = []  # [k][j] k=fan radial index, j=radial step
+        self.region_I_nodes: list[
+            list[Node]
+        ] = []  # [k][m] same layout as fan, m=step along α toward foundation
 
         self._built = False
 
@@ -176,7 +182,7 @@ class PrandtlSolver:
         radials: list[list[Node]] = []
         for k in range(self.n_fan + 1):
             psi_k = self.psi_B + k * dpsi
-            theta_k = np.pi / 4.0 + psi_k          # β-line slope angle
+            theta_k = np.pi / 4.0 + psi_k  # β-line slope angle
             sigma_k = cu * (1.0 + 2.0 * psi_k)
             line: list[Node] = []
             for j in range(n_p + 1):
@@ -286,9 +292,11 @@ class PrandtlSolver:
         # ---- Region II: α-lines = arcs across the fan, joining nodes at the
         # same radius r_j across all fan radials.
         for j in range(1, n + 1):
-            arc = [self.region_II_nodes[k][j]
-                   for k in range(self.n_fan + 1)
-                   if j < len(self.region_II_nodes[k])]
+            arc = [
+                self.region_II_nodes[k][j]
+                for k in range(self.n_fan + 1)
+                if j < len(self.region_II_nodes[k])
+            ]
             if len(arc) >= 2:
                 lines.append(arc)
 
@@ -404,15 +412,15 @@ class MohrCoulombPrandtlSolver:
 
         # Boundary stress states
         self.pbar_B, self.psi_B = self.yield_fn.stress_state_free_surface()
-        self.psi_A = self.yield_fn.stress_state_foundation(r=0.0)   # = π/2
-        self.delta_psi = self.psi_A - self.psi_B                    # = π/2
+        self.psi_A = self.yield_fn.stress_state_foundation(r=0.0)  # = π/2
+        self.delta_psi = self.psi_A - self.psi_B  # = π/2
         self.pbar_A = self.pbar_B * np.exp(np.pi * np.tan(phi))
 
         # Slip-line angles in each region
         # Region I  (ψ_A = π/2):  α at π/4+φ/2,  β at 3π/4−φ/2
         # Region III (ψ_B = 0):   α at φ/2−π/4,  β at π/4−φ/2
-        self.theta_alpha_I   =  np.pi / 4.0 + phi / 2.0   # α angle in Region I
-        self.theta_beta_III  =  np.pi / 4.0 - phi / 2.0   # β angle in Region III
+        self.theta_alpha_I = np.pi / 4.0 + phi / 2.0  # α angle in Region I
+        self.theta_beta_III = np.pi / 4.0 - phi / 2.0  # β angle in Region III
 
         # Mesh sizing (ensures continuous lower boundary across all zones)
         #   dr   : fan radial step (length of one β-line increment at Zone I boundary)
@@ -432,13 +440,18 @@ class MohrCoulombPrandtlSolver:
         #   is at r·exp(+Δψ·tan φ) on the Zone-III side, giving:
         #       h = 2·dr·exp(+Δψ·tan φ)·cos(π/4 − φ/2)
         self.dr = B / (2.0 * self.n_radial * np.cos(self.theta_alpha_I))
-        self.h  = 2.0 * self.dr * np.exp(+self.delta_psi * np.tan(phi)) * np.cos(self.theta_beta_III)
-        self.L  = self.n_radial * self.h
+        self.h = (
+            2.0
+            * self.dr
+            * np.exp(+self.delta_psi * np.tan(phi))
+            * np.cos(self.theta_beta_III)
+        )
+        self.L = self.n_radial * self.h
 
         # Storage
         self.region_III_nodes: list[list[Node]] = []
-        self.region_II_nodes:  list[list[Node]] = []
-        self.region_I_nodes:   list[list[Node]] = []
+        self.region_II_nodes: list[list[Node]] = []
+        self.region_I_nodes: list[list[Node]] = []
 
         self._built = False
 
@@ -523,21 +536,23 @@ class MohrCoulombPrandtlSolver:
 
         radials: list[list[Node]] = []
         for k in range(self.n_fan + 1):
-            psi_k  = self.psi_B + k * dpsi
+            psi_k = self.psi_B + k * dpsi
             theta_k = psi_k + np.pi / 4.0 - self.phi / 2.0
-            pbar_k  = self.pbar_B * np.exp(2.0 * tanphi * psi_k)
+            pbar_k = self.pbar_B * np.exp(2.0 * tanphi * psi_k)
             # log-spiral scale: α-line at level j is at distance j·dr on the
             # last radial and r·exp(+(Δψ−ψ_k)·tanφ) on the k-th radial.
             spiral_scale = np.exp(+(self.delta_psi - psi_k) * tanphi)
             line: list[Node] = []
             for j in range(n_p + 1):
                 r_j = j * self.dr * spiral_scale
-                line.append(Node(
-                    x=self.B + r_j * np.cos(theta_k),
-                    y=r_j * np.sin(theta_k),
-                    sigma=pbar_k,
-                    psi=psi_k,
-                ))
+                line.append(
+                    Node(
+                        x=self.B + r_j * np.cos(theta_k),
+                        y=r_j * np.sin(theta_k),
+                        sigma=pbar_k,
+                        psi=psi_k,
+                    )
+                )
             radials.append(line)
         self.region_II_nodes = radials
 
@@ -566,7 +581,7 @@ class MohrCoulombPrandtlSolver:
         n = self.n_radial
         h_I = self.B / n
         pbar_A = self.pbar_A
-        tan_alpha = np.tan(self.theta_alpha_I)        # tan(π/4 + φ/2)
+        tan_alpha = np.tan(self.theta_alpha_I)  # tan(π/4 + φ/2)
 
         x_anchor = [i * h_I for i in range(n + 1)]
 
@@ -601,26 +616,24 @@ class MohrCoulombPrandtlSolver:
         also continuous in the theoretical limit (discretisation error ∝ 1/n_fan).
         """
         lines: list[list[Node]] = []
-        n       = self.n_radial
-        n_fan   = self.n_fan
+        n = self.n_radial
+        n_fan = self.n_fan
 
         for m in range(1, n + 1):
-            j_I = n - m   # Region I column index for this α-line
+            j_I = n - m  # Region I column index for this α-line
 
             # 1. Region I: foundation anchor → fan boundary (Zone-I side of fan)
             seg_I = [self.region_I_nodes[i][j_I] for i in range(j_I, n + 1)]
 
             # 2. Fan arc reversed: Zone-I side (k=n_fan-1) → Zone-III side (k=0)
             #    Skip k=n_fan: already the last node of seg_I (same coordinates).
-            seg_fan = [self.region_II_nodes[k][m]
-                       for k in range(n_fan - 1, -1, -1)]
+            seg_fan = [self.region_II_nodes[k][m] for k in range(n_fan - 1, -1, -1)]
 
             # 3. Region III: fan Zone-III side → free surface
             #    i_surf = m; nodes are region_III_nodes[j][m-j] for j = 0..m.
             #    Reversed (fan side = j=m, surface = j=0); skip j=m (= last of
             #    seg_fan, same coordinates).
-            seg_III = [self.region_III_nodes[j][m - j]
-                       for j in range(m - 1, -1, -1)]
+            seg_III = [self.region_III_nodes[j][m - j] for j in range(m - 1, -1, -1)]
 
             line = seg_I + seg_fan + seg_III
             if len(line) >= 2:
@@ -711,14 +724,14 @@ class MohrCoulombGravityPrandtlSolver:
 
         self.yield_fn = MohrCoulombYield(self.c, self.phi)
         self.pbar_B, self.psi_B = self.yield_fn.stress_state_free_surface()
-        self.psi_A = self.yield_fn.stress_state_foundation(r=0.0)   # = π/2
-        self.delta_psi = self.psi_A - self.psi_B                    # = π/2
+        self.psi_A = self.yield_fn.stress_state_foundation(r=0.0)  # = π/2
+        self.delta_psi = self.psi_A - self.psi_B  # = π/2
         # p̄ on the corner-fan side of the smooth foundation (γ = 0 limit at corner)
         self.pbar_A0 = self.pbar_B * np.exp(np.pi * np.tan(self.phi))
 
         # Mesh angles (same as weightless solver)
-        self.theta_alpha_I   = np.pi / 4.0 + self.phi / 2.0
-        self.theta_beta_III  = np.pi / 4.0 - self.phi / 2.0
+        self.theta_alpha_I = np.pi / 4.0 + self.phi / 2.0
+        self.theta_beta_III = np.pi / 4.0 - self.phi / 2.0
 
         # Mesh sizing — chosen so the foundation chain (leftmost end of
         # Region I) exactly reaches the symmetry plane x = 0.  For γ = 0
@@ -728,8 +741,8 @@ class MohrCoulombGravityPrandtlSolver:
         self._set_dr_inner(B / self.n_radial)
 
         self.region_III_nodes: list[list[Node]] = []
-        self.region_II_nodes:  list[list[Node]] = []
-        self.region_I_nodes:   list[list[Node]] = []
+        self.region_II_nodes: list[list[Node]] = []
+        self.region_I_nodes: list[list[Node]] = []
 
         self._built = False
 
@@ -739,8 +752,8 @@ class MohrCoulombGravityPrandtlSolver:
         self.dr_outer = self.dr_inner * np.exp(self.delta_psi * np.tan(self.phi))
         # Region III mesh size h chosen so its III/II diagonal coincides
         # one-to-one with the m = 0 row of the (k, m) grid.
-        self.h  = 2.0 * self.dr_outer * np.cos(self.theta_beta_III)
-        self.L  = self.n_radial * self.h
+        self.h = 2.0 * self.dr_outer * np.cos(self.theta_beta_III)
+        self.L = self.n_radial * self.h
         # Backwards-compatible attribute
         self.dr = self.dr_outer
 
@@ -748,8 +761,9 @@ class MohrCoulombGravityPrandtlSolver:
     # Public interface
     # ------------------------------------------------------------------
 
-    def solve(self, fit_foundation: bool = True,
-              fit_tol: float = 1e-4, fit_max_iter: int = 12) -> dict:
+    def solve(
+        self, fit_foundation: bool = True, fit_tol: float = 1e-4, fit_max_iter: int = 12
+    ) -> dict:
         """
         Build the slip-line field and return the bearing-capacity result.
 
@@ -783,16 +797,16 @@ class MohrCoulombGravityPrandtlSolver:
         self._built = True
 
         q_x, q_vals = self.contact_pressure_curve()
-        Q = float(np.trapezoid(q_vals, q_x))   # half-footing load per unit length
+        Q = float(np.trapezoid(q_vals, q_x))  # half-footing load per unit length
         return {
-            'q_per_unit_length_half': Q,
-            'q_per_unit_length_full': 2.0 * Q,
-            'q_over_2B': Q / self.B,                    # average pressure on half
-            'q_over_cB': Q / (self.c * self.B),
-            'q_over_gammaB2': Q / (self.gamma * self.B ** 2) if self.gamma > 0 else None,
-            'Nc_weightless': self.yield_fn.Nc(),
-            'sigma_yy_at_centre': q_vals[0],
-            'sigma_yy_at_corner': q_vals[-1],
+            "q_per_unit_length_half": Q,
+            "q_per_unit_length_full": 2.0 * Q,
+            "q_over_2B": Q / self.B,  # average pressure on half
+            "q_over_cB": Q / (self.c * self.B),
+            "q_over_gammaB2": Q / (self.gamma * self.B**2) if self.gamma > 0 else None,
+            "Nc_weightless": self.yield_fn.Nc(),
+            "sigma_yy_at_centre": q_vals[0],
+            "sigma_yy_at_corner": q_vals[-1],
         }
 
     def contact_pressure_curve(self):
@@ -808,7 +822,7 @@ class MohrCoulombGravityPrandtlSolver:
         """
         sp = np.sin(self.phi)
         cp = np.cos(self.phi)
-        nodes = self.foundation_nodes   # already x ascending
+        nodes = self.foundation_nodes  # already x ascending
         xs = np.array([n.x for n in nodes])
         sn = np.array([n.sigma * (1.0 + sp) - self.c * cp / sp for n in nodes])
 
@@ -878,17 +892,15 @@ class MohrCoulombGravityPrandtlSolver:
         the inner-fan-radial (k = n_fan) is shifted from the weightless case,
         which carries the γ-dependence into the foundation pressure.
         """
-        n_p   = self.n_radial
+        n_p = self.n_radial
         n_fan = self.n_fan
-        dpsi  = self.delta_psi / n_fan
+        dpsi = self.delta_psi / n_fan
         tanphi = np.tan(self.phi)
-        mu    = self.theta_beta_III          # π/4 − φ/2
+        mu = self.theta_beta_III  # π/4 − φ/2
         gamma = self.gamma
 
         # Allocate region_II_nodes[k][m]
-        grid: list[list[Node | None]] = [
-            [None] * (n_p + 1) for _ in range(n_fan + 1)
-        ]
+        grid: list[list[Node | None]] = [[None] * (n_p + 1) for _ in range(n_fan + 1)]
 
         # k = 0 : corner-fan column (all at (B, 0))
         for m in range(n_fan + 1):
@@ -909,16 +921,21 @@ class MohrCoulombGravityPrandtlSolver:
         # Interior nodes — Riemann sweep
         for m in range(1, n_fan + 1):
             for k in range(1, n_p + 1):
-                P = grid[m - 1][k]      # α-parent: same β-radial (k), previous angular index
-                Q = grid[m][k - 1]      # β-parent: same α-spiral (m), previous radial index
+                P = grid[m - 1][
+                    k
+                ]  # α-parent: same β-radial (k), previous angular index
+                Q = grid[m][k - 1]  # β-parent: same α-spiral (m), previous radial index
                 grid[m][k] = riemann_step_mc_gravity(
-                    P, Q, self.c, self.phi, gamma, n_iter=5,
+                    P,
+                    Q,
+                    self.c,
+                    self.phi,
+                    gamma,
+                    n_iter=5,
                 )
 
         # Cast back to list[list[Node]]
-        self.region_II_nodes = [
-            [n for n in row] for row in grid
-        ]
+        self.region_II_nodes = [[n for n in row] for row in grid]
 
     # ------------------------------------------------------------------
     # Region I — RIGOROUS triangular MOC mesh with gravity
@@ -951,12 +968,12 @@ class MohrCoulombGravityPrandtlSolver:
             using ψ_avg = (ψ_P + π/2)/2 for slope; p̄_F solved from
             α-Kötter with gravity by Picard iteration on p̄_avg.
         """
-        n_p    = self.n_radial
-        n_fan  = self.n_fan
+        n_p = self.n_radial
+        n_fan = self.n_fan
         tanphi = np.tan(self.phi)
-        phi    = self.phi
-        psi_F  = self.psi_A                  # π/2
-        gamma  = self.gamma
+        phi = self.phi
+        psi_F = self.psi_A  # π/2
+        gamma = self.gamma
 
         inner = [self.region_II_nodes[n_fan][k] for k in range(n_p + 1)]
 
@@ -970,13 +987,18 @@ class MohrCoulombGravityPrandtlSolver:
 
         # k = 1 .. n_p — build α-line k and foundation node F[k]
         for k in range(1, n_p + 1):
-            chain: list[Node] = [inner[k]]   # j = 0
+            chain: list[Node] = [inner[k]]  # j = 0
             # Interior: j = 1 .. k − 1
             for j in range(1, k):
-                P = chain[j - 1]              # α-parent
-                Q = nodes[k - 1][j]           # β-parent
+                P = chain[j - 1]  # α-parent
+                Q = nodes[k - 1][j]  # β-parent
                 R = riemann_step_mc_gravity(
-                    P, Q, self.c, phi, gamma, n_iter=5,
+                    P,
+                    Q,
+                    self.c,
+                    phi,
+                    gamma,
+                    n_iter=5,
                 )
                 chain.append(R)
             # Foundation node F[k] (j = k) — α-shot to y = 0, ψ = π/2
@@ -986,12 +1008,11 @@ class MohrCoulombGravityPrandtlSolver:
             if abs(slope_a) < 1e-12 or P.y < 1e-12:
                 F_k = Node(P.x, 0.0, P.sigma, psi_F)
             else:
-                x_F  = P.x - P.y / slope_a
+                x_F = P.x - P.y / slope_a
                 dx_F = x_F - P.x
                 dy_F = -P.y
                 pbar_F = P.sigma
-                a_lhs = (np.log(P.sigma) - 2.0 * tanphi * P.psi
-                         + 2.0 * tanphi * psi_F)
+                a_lhs = np.log(P.sigma) - 2.0 * tanphi * P.psi + 2.0 * tanphi * psi_F
                 for _ in range(12):
                     pavg = 0.5 * (P.sigma + pbar_F)
                     ln_pbar = a_lhs + (gamma / pavg) * (dy_F - tanphi * dx_F)
@@ -1029,16 +1050,14 @@ class MohrCoulombGravityPrandtlSolver:
           → Region I α-chain (j = 0..k, from inner-fan to foundation F[k]).
         """
         lines: list[list[Node]] = []
-        n     = self.n_radial
+        n = self.n_radial
         n_fan = self.n_fan
 
         for k in range(1, n + 1):
-            seg_III = [self.region_III_nodes[j][k - j]
-                       for j in range(k - 1, -1, -1)]
-            seg_II  = [self.region_II_nodes[m][k]
-                       for m in range(n_fan + 1)]
+            seg_III = [self.region_III_nodes[j][k - j] for j in range(k - 1, -1, -1)]
+            seg_II = [self.region_II_nodes[m][k] for m in range(n_fan + 1)]
             # Skip j = 0 of Region I — it equals inner[k] = seg_II[-1]
-            seg_I   = [self.region_I_nodes[k][j] for j in range(1, k + 1)]
+            seg_I = [self.region_I_nodes[k][j] for j in range(1, k + 1)]
             line = list(reversed(seg_III)) + seg_II + seg_I
             if len(line) >= 2:
                 lines.append(line)
@@ -1058,7 +1077,7 @@ class MohrCoulombGravityPrandtlSolver:
         β-boundary of Region I.
         """
         lines: list[list[Node]] = []
-        n     = self.n_radial
+        n = self.n_radial
         n_fan = self.n_fan
 
         # Region III β-lines
@@ -1182,12 +1201,12 @@ class DiskPrandtlSolver:
         # the fan_I β-line (zone-II boundary) exactly coincides with the
         # corner β-line of Region I, and Region III's corner-side β-line
         # exactly matches the k=0 fan radial.
-        self.L = max(self.D, 1.0)            # placeholder; overwritten in solve()
+        self.L = max(self.D, 1.0)  # placeholder; overwritten in solve()
         self.h = self.L / self.n_radial
         self.dr = self.h / np.sqrt(2.0)
 
         self.region_III_nodes: list[list[Node]] = []
-        self.region_II_nodes:  list[list[Node]] = []
+        self.region_II_nodes: list[list[Node]] = []
         self.disk_surface_nodes: list[Node] = []
         self.region_I_alpha_lines: list[list[Node]] = []
 
@@ -1213,20 +1232,21 @@ class DiskPrandtlSolver:
         self._built = True
 
         Q = self.collapse_load_Q()
-        sn_sample = np.array([self._sigma_n(t)
-                              for t in np.linspace(0.0, self.theta_max, 401)])
+        sn_sample = np.array(
+            [self._sigma_n(t) for t in np.linspace(0.0, self.theta_max, 401)]
+        )
         return {
-            'Q_per_unit_length': Q,
-            'Q_over_D': Q / self.D,
-            'Q_over_D_over_cu': Q / (self.D * self.cu),
-            'sigma_n_max': float(sn_sample.max()),
-            'sigma_n_at_bottom': self._sigma_n(0.0),
-            'sigma_n_at_edge':   self._sigma_n(self.theta_max),
-            'theta_max_deg': np.degrees(self.theta_max),
-            'B_s': self.B_s,
-            'fan_angle_deg': np.degrees(self.delta_psi_fan),
-            'parallel_beta_zone': self.use_parallel_zone,
-            'theta_0_deg': np.degrees(self.theta_0),
+            "Q_per_unit_length": Q,
+            "Q_over_D": Q / self.D,
+            "Q_over_D_over_cu": Q / (self.D * self.cu),
+            "sigma_n_max": float(sn_sample.max()),
+            "sigma_n_at_bottom": self._sigma_n(0.0),
+            "sigma_n_at_edge": self._sigma_n(self.theta_max),
+            "theta_max_deg": np.degrees(self.theta_max),
+            "B_s": self.B_s,
+            "fan_angle_deg": np.degrees(self.delta_psi_fan),
+            "parallel_beta_zone": self.use_parallel_zone,
+            "theta_0_deg": np.degrees(self.theta_0),
         }
 
     def collapse_load_Q(self) -> float:
@@ -1262,7 +1282,7 @@ class DiskPrandtlSolver:
     def _sigma_n(self, phi: float) -> float:
         """Normal contact stress at disk-surface angle φ (general piecewise form).
 
-            σ_n = σ + cu·cos(2ω_eff) = cu·(1 + 2ψ_disk + √(1 − r_eff²))
+        σ_n = σ + cu·cos(2ω_eff) = cu·(1 + 2ψ_disk + √(1 − r_eff²))
         """
         cu = self.cu
         psi = self._psi_disk(phi)
@@ -1283,7 +1303,7 @@ class DiskPrandtlSolver:
     def contact_pressure_curve(self, n: int = 100):
         """Return arrays (phi, sigma_n/cu) for plotting."""
         phis = np.linspace(0.0, self.theta_max, n)
-        sig  = np.array([self._sigma_n(p) for p in phis])
+        sig = np.array([self._sigma_n(p) for p in phis])
         return phis, sig
 
     def stress_distribution_curve(self, n: int = 200):
@@ -1292,9 +1312,9 @@ class DiskPrandtlSolver:
         sigma_n : normal stress (compression positive) at each phi
         tau     : shear stress |τ| = r_eff(θ)·cu  (piecewise; equals r·cu in inner zone)
         """
-        phis    = np.linspace(0.0, self.theta_max, n)
+        phis = np.linspace(0.0, self.theta_max, n)
         sigma_n = np.array([self._sigma_n(p) for p in phis])
-        tau     = np.array([self._tau(p)     for p in phis])
+        tau = np.array([self._tau(p) for p in phis])
         return phis, sigma_n, tau
 
     # ------------------------------------------------------------------
@@ -1332,7 +1352,7 @@ class DiskPrandtlSolver:
 
         phi = np.linspace(0.0, tmax, max(2, int(n)))
         sigma_n = np.array([self._sigma_n(p) for p in phi])
-        tau     = np.array([self._tau(p)     for p in phi])
+        tau = np.array([self._tau(p) for p in phi])
 
         dF_v = sigma_n * np.cos(phi) - s * tau * np.sin(phi)
         dF_h = -sigma_n * np.sin(phi) - s * tau * np.cos(phi)
@@ -1341,10 +1361,10 @@ class DiskPrandtlSolver:
         F_h = R * float(np.trapezoid(dF_h, phi))
 
         return {
-            'F_v': F_v,
-            'F_h': F_h,
-            'F_v_total': 2.0 * F_v,
-            'F_h_total': 0.0,
+            "F_v": F_v,
+            "F_h": F_h,
+            "F_v_total": 2.0 * F_v,
+            "F_h_total": 0.0,
         }
 
     # ------------------------------------------------------------------
@@ -1365,12 +1385,12 @@ class DiskPrandtlSolver:
         Region III then uses h = dr·√2 so its 45° corner-side β-line (length
         n_radial·h/√2 = n_radial·dr) matches the k=0 fan radial.
         """
-        mesh = getattr(self, 'region_I_mesh', None)
+        mesh = getattr(self, "region_I_mesh", None)
         if not mesh or len(mesh) < 2 or len(mesh[0]) < 2:
             # Nothing to match against — keep placeholder sizing.
             return
-        corner = mesh[0][-1]          # disk corner (B_s, 0)
-        deep_end = mesh[-1][0]        # tip of Region I corner β-line
+        corner = mesh[0][-1]  # disk corner (B_s, 0)
+        deep_end = mesh[-1][0]  # tip of Region I corner β-line
         dx = deep_end.x - corner.x
         dy = deep_end.y - corner.y
         length = float(np.hypot(dx, dy))
@@ -1462,10 +1482,11 @@ class DiskPrandtlSolver:
             n_outer = max(1, self.n_disk - n_inner)
             inner = list(np.linspace(0.0, self.theta_0, n_inner + 1))
             outer = list(np.linspace(self.theta_0, self.theta_max, n_outer + 1))[1:]
-            thetas = list(reversed(inner + outer))   # corner → bottom
+            thetas = list(reversed(inner + outer))  # corner → bottom
         else:
-            thetas = [self.theta_max * (1.0 - i / self.n_disk)
-                      for i in range(self.n_disk + 1)]
+            thetas = [
+                self.theta_max * (1.0 - i / self.n_disk) for i in range(self.n_disk + 1)
+            ]
 
         nodes: list[Node] = []
         for th in thetas:
@@ -1509,8 +1530,12 @@ class DiskPrandtlSolver:
                     N = riemann_step(prev[i], prev[i + 1], cu)
                 except Exception:
                     N = None
-                if (N is None or not np.isfinite(N.x) or not np.isfinite(N.y)
-                        or N.y < -1e-6):
+                if (
+                    N is None
+                    or not np.isfinite(N.x)
+                    or not np.isfinite(N.y)
+                    or N.y < -1e-6
+                ):
                     break
                 row.append(N)
             if len(row) < 1:
@@ -1529,7 +1554,7 @@ class DiskPrandtlSolver:
         lines: list[list[Node]] = []
 
         # ---- Region I (disk-under): α-line = fixed column across rows ----
-        mesh = getattr(self, 'region_I_mesh', None)
+        mesh = getattr(self, "region_I_mesh", None)
         if mesh:
             n_cols = len(mesh[0])
             for i in range(n_cols):
@@ -1546,9 +1571,11 @@ class DiskPrandtlSolver:
         n_p = self.n_radial
         if self.region_II_nodes and len(self.region_II_nodes) > 1:
             for j in range(1, n_p + 1):
-                arc = [self.region_II_nodes[k][j]
-                       for k in range(len(self.region_II_nodes))
-                       if j < len(self.region_II_nodes[k])]
+                arc = [
+                    self.region_II_nodes[k][j]
+                    for k in range(len(self.region_II_nodes))
+                    if j < len(self.region_II_nodes[k])
+                ]
                 if len(arc) >= 2:
                     lines.append(arc)
 
@@ -1570,7 +1597,7 @@ class DiskPrandtlSolver:
         lines: list[list[Node]] = []
 
         # ---- Region I (disk-under): β-line = anti-diagonal (i+k = const) --
-        mesh = getattr(self, 'region_I_mesh', None)
+        mesh = getattr(self, "region_I_mesh", None)
         if mesh:
             n_cols0 = len(mesh[0])
             for j_start in range(n_cols0):
@@ -1693,11 +1720,14 @@ class MohrCoulombDiskPrandtlSolver:
         # Mesh sizing — placeholders; recomputed from Region I in solve().
         self.L = max(self.D, 1.0)
         self.h = self.L / self.n_radial
-        self.dr = self.h / (2.0 * np.cos(np.pi / 4.0 - self.phi / 2.0)
-                            * np.exp(self.delta_psi_fan * np.tan(self.phi)))
+        self.dr = self.h / (
+            2.0
+            * np.cos(np.pi / 4.0 - self.phi / 2.0)
+            * np.exp(self.delta_psi_fan * np.tan(self.phi))
+        )
 
         self.region_III_nodes: list[list[Node]] = []
-        self.region_II_nodes:  list[list[Node]] = []
+        self.region_II_nodes: list[list[Node]] = []
         self.disk_surface_nodes: list[Node] = []
         self.region_I_mesh: list[list[Node]] = []
 
@@ -1716,21 +1746,22 @@ class MohrCoulombDiskPrandtlSolver:
         self._built = True
 
         Q = self.collapse_load_Q()
-        sn_sample = np.array([self._sigma_n(t)
-                              for t in np.linspace(0.0, self.theta_max, 401)])
+        sn_sample = np.array(
+            [self._sigma_n(t) for t in np.linspace(0.0, self.theta_max, 401)]
+        )
         return {
-            'Q_per_unit_length': Q,
-            'Q_over_D': Q / self.D,
-            'Q_over_Dc': Q / (self.D * self.c),
-            'sigma_n_max':       float(sn_sample.max()),
-            'sigma_n_at_bottom': self._sigma_n(0.0),
-            'sigma_n_at_edge':   self._sigma_n(self.theta_max),
-            'theta_max_deg':     np.degrees(self.theta_max),
-            'B_s':               self.B_s,
-            'fan_angle_deg':     np.degrees(self.delta_psi_fan),
-            'parallel_beta_zone': self.use_parallel_zone,
-            'theta_0_deg':       np.degrees(self.theta_0),
-            'Nc_flat_smooth':    self.yield_fn.Nc(),
+            "Q_per_unit_length": Q,
+            "Q_over_D": Q / self.D,
+            "Q_over_Dc": Q / (self.D * self.c),
+            "sigma_n_max": float(sn_sample.max()),
+            "sigma_n_at_bottom": self._sigma_n(0.0),
+            "sigma_n_at_edge": self._sigma_n(self.theta_max),
+            "theta_max_deg": np.degrees(self.theta_max),
+            "B_s": self.B_s,
+            "fan_angle_deg": np.degrees(self.delta_psi_fan),
+            "parallel_beta_zone": self.use_parallel_zone,
+            "theta_0_deg": np.degrees(self.theta_0),
+            "Nc_flat_smooth": self.yield_fn.Nc(),
         }
 
     # ------------------------------------------------------------------
@@ -1762,7 +1793,7 @@ class MohrCoulombDiskPrandtlSolver:
     def _sigma_n(self, theta: float) -> float:
         """Normal contact stress on disk at angle θ (general piecewise form).
 
-            σ_n = p̄·(1 + sinφ · √(1 − r_eff²)) − c·cotφ
+        σ_n = p̄·(1 + sinφ · √(1 − r_eff²)) − c·cotφ
         """
         sp = np.sin(self.phi)
         r_eff = self._r_eff(theta)
@@ -1782,9 +1813,9 @@ class MohrCoulombDiskPrandtlSolver:
 
     def stress_distribution_curve(self, n: int = 200):
         """Return (theta, sigma_n, tau) along the contact arc."""
-        ths    = np.linspace(0.0, self.theta_max, n)
+        ths = np.linspace(0.0, self.theta_max, n)
         sigma_n = np.array([self._sigma_n(t) for t in ths])
-        tau     = np.array([self._tau(t)     for t in ths])
+        tau = np.array([self._tau(t) for t in ths])
         return ths, sigma_n, tau
 
     def collapse_load_Q(self) -> float:
@@ -1809,9 +1840,9 @@ class MohrCoulombDiskPrandtlSolver:
           dF_v = (σ_n cos θ − |τ| sin θ) · R dθ   (upward)
           dF_h = (−σ_n sin θ − |τ| cos θ) · R dθ  (resisting, −x)
         """
-        ths    = np.linspace(0.0, self.theta_max, max(2, int(n)))
+        ths = np.linspace(0.0, self.theta_max, max(2, int(n)))
         sigma_n = np.array([self._sigma_n(t) for t in ths])
-        tau     = np.array([self._tau(t)     for t in ths])
+        tau = np.array([self._tau(t) for t in ths])
 
         dF_v = sigma_n * np.cos(ths) - tau * np.sin(ths)
         dF_h = -sigma_n * np.sin(ths) - tau * np.cos(ths)
@@ -1819,10 +1850,10 @@ class MohrCoulombDiskPrandtlSolver:
         F_v = self.R * float(np.trapezoid(dF_v, ths))
         F_h = self.R * float(np.trapezoid(dF_h, ths))
         return {
-            'F_v': F_v,
-            'F_h': F_h,
-            'F_v_total': 2.0 * F_v,
-            'F_h_total': 0.0,
+            "F_v": F_v,
+            "F_h": F_h,
+            "F_v_total": 2.0 * F_v,
+            "F_h_total": 0.0,
         }
 
     # ------------------------------------------------------------------
@@ -1845,16 +1876,19 @@ class MohrCoulombDiskPrandtlSolver:
         mesh = self.region_I_mesh
         if not mesh or len(mesh) < 2 or len(mesh[0]) < 2:
             return
-        corner   = mesh[0][-1]
+        corner = mesh[0][-1]
         deep_end = mesh[-1][0]
         length = float(np.hypot(deep_end.x - corner.x, deep_end.y - corner.y))
         if length <= 1e-12 or self.n_radial < 1:
             return
         self.dr = length / self.n_radial
-        self.h  = (2.0 * self.dr
-                   * np.exp(self.delta_psi_fan * np.tan(self.phi))
-                   * np.cos(np.pi / 4.0 - self.phi / 2.0))
-        self.L  = self.n_radial * self.h
+        self.h = (
+            2.0
+            * self.dr
+            * np.exp(self.delta_psi_fan * np.tan(self.phi))
+            * np.cos(np.pi / 4.0 - self.phi / 2.0)
+        )
+        self.L = self.n_radial * self.h
 
     # ------------------------------------------------------------------
     # Disk-surface boundary nodes
@@ -1872,10 +1906,11 @@ class MohrCoulombDiskPrandtlSolver:
             n_outer = max(1, self.n_disk - n_inner)
             inner = list(np.linspace(0.0, self.theta_0, n_inner + 1))
             outer = list(np.linspace(self.theta_0, self.theta_max, n_outer + 1))[1:]
-            thetas = list(reversed(inner + outer))   # corner → bottom
+            thetas = list(reversed(inner + outer))  # corner → bottom
         else:
-            thetas = [self.theta_max * (1.0 - i / self.n_disk)
-                      for i in range(self.n_disk + 1)]
+            thetas = [
+                self.theta_max * (1.0 - i / self.n_disk) for i in range(self.n_disk + 1)
+            ]
 
         nodes: list[Node] = []
         for th in thetas:
@@ -1900,7 +1935,7 @@ class MohrCoulombDiskPrandtlSolver:
             α-line  : fixed i, k varies   (parents are α-side)
             β-line  : i + k = const       (parents are β-side)
         """
-        chain = list(reversed(self.disk_surface_nodes))     # bottom → corner
+        chain = list(reversed(self.disk_surface_nodes))  # bottom → corner
         mesh: list[list[Node]] = [chain]
 
         for _ in range(len(chain) - 1):
@@ -1911,8 +1946,12 @@ class MohrCoulombDiskPrandtlSolver:
                     N = riemann_step_mc(prev[i], prev[i + 1], self.c, self.phi)
                 except Exception:
                     N = None
-                if (N is None or not np.isfinite(N.x) or not np.isfinite(N.y)
-                        or N.y < -1e-6):
+                if (
+                    N is None
+                    or not np.isfinite(N.x)
+                    or not np.isfinite(N.y)
+                    or N.y < -1e-6
+                ):
                     break
                 row.append(N)
             if len(row) < 1:
@@ -1933,9 +1972,9 @@ class MohrCoulombDiskPrandtlSolver:
             α-lines : log spirals — node (k, j) at distance
                       r_{k,j} = j·dr · exp((Δψ − ψ_k)·tan φ)
         """
-        n_p   = self.n_radial
-        phi   = self.phi
-        tphi  = np.tan(phi)
+        n_p = self.n_radial
+        phi = self.phi
+        tphi = np.tan(phi)
 
         if self.use_parallel_zone:
             # No Region II at all; Region III meets the parallel-β zone of
@@ -1946,7 +1985,7 @@ class MohrCoulombDiskPrandtlSolver:
         if self.n_fan < 1 or abs(self.delta_psi_fan) < 1e-12:
             # Degenerate fan (ψ_edge ≈ 0): one radial at angle π/4 − φ/2
             theta0 = self.psi_B + np.pi / 4.0 - phi / 2.0
-            pbar0  = self.pbar_B * np.exp(2.0 * tphi * self.psi_B)
+            pbar0 = self.pbar_B * np.exp(2.0 * tphi * self.psi_B)
             radial = [
                 Node(
                     x=self.B_s + (j * self.dr) * np.cos(theta0),
@@ -1964,17 +2003,19 @@ class MohrCoulombDiskPrandtlSolver:
         for k in range(self.n_fan + 1):
             psi_k = self.psi_B + k * dpsi
             theta_k = psi_k + np.pi / 4.0 - phi / 2.0
-            pbar_k  = self.pbar_B * np.exp(2.0 * tphi * psi_k)
+            pbar_k = self.pbar_B * np.exp(2.0 * tphi * psi_k)
             spiral_scale = np.exp((self.delta_psi_fan - psi_k) * tphi)
             line: list[Node] = []
             for j in range(n_p + 1):
                 rj = j * self.dr * spiral_scale
-                line.append(Node(
-                    x=self.B_s + rj * np.cos(theta_k),
-                    y=rj * np.sin(theta_k),
-                    sigma=pbar_k,
-                    psi=psi_k,
-                ))
+                line.append(
+                    Node(
+                        x=self.B_s + rj * np.cos(theta_k),
+                        y=rj * np.sin(theta_k),
+                        sigma=pbar_k,
+                        psi=psi_k,
+                    )
+                )
             radials.append(line)
         self.region_II_nodes = radials
 
@@ -2025,9 +2066,11 @@ class MohrCoulombDiskPrandtlSolver:
         n_p = self.n_radial
         if self.region_II_nodes and len(self.region_II_nodes) > 1:
             for j in range(1, n_p + 1):
-                arc = [self.region_II_nodes[k][j]
-                       for k in range(len(self.region_II_nodes))
-                       if j < len(self.region_II_nodes[k])]
+                arc = [
+                    self.region_II_nodes[k][j]
+                    for k in range(len(self.region_II_nodes))
+                    if j < len(self.region_II_nodes[k])
+                ]
                 if len(arc) >= 2:
                     lines.append(arc)
 

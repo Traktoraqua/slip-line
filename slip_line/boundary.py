@@ -24,6 +24,7 @@ class FoundationBoundary:
         Foundation half-width [length units]; used for geometry scaling only.
         Stresses are independent of B in a weightless material.
     """
+
     cu: float
     r: float
     B: float = 1.0
@@ -76,6 +77,7 @@ class DiskFoundationBoundary:
     r  : float
         Roughness ratio = |τ| / cu at the disk surface, in [0, 1].
     """
+
     cu: float
     D: float
     p: float

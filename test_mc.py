@@ -1,10 +1,11 @@
 """Generate Mohr-Coulomb Prandtl slip-line field plots."""
+
 import matplotlib
 
 matplotlib.use("Agg")
 from pathlib import Path
 
-PLOTS = Path(__file__).parent / 'plots'
+PLOTS = Path(__file__).parent / "plots"
 PLOTS.mkdir(exist_ok=True)
 import numpy as np
 
@@ -24,7 +25,7 @@ for case in cases:
     Nc = solver.analytical_Nc()
     print(
         f"phi={case['phi_deg']:2d}°  q/c = {q:.4f}  Nc_analyt = {Nc:.4f}"
-        f"  diff = {abs(q/1.0 - Nc):.2e}"
+        f"  diff = {abs(q / 1.0 - Nc):.2e}"
     )
     fig = plot_mc_slip_lines(solver, show=False)
     fname = f"plot_mc_{case['label']}.png"

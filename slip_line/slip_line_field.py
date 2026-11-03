@@ -14,10 +14,11 @@ import numpy as np
 @dataclass
 class Node:
     """A node in the slip line field."""
+
     x: float
     y: float
-    sigma: float   # mean stress
-    psi: float     # principal-stress angle [rad]
+    sigma: float  # mean stress
+    psi: float  # principal-stress angle [rad]
 
 
 def alpha_slope(psi: float) -> float:
@@ -80,6 +81,7 @@ def _intersect(P: Node, Q: Node, psi_a: float, psi_b: float) -> tuple[float, flo
 # Mohr-Coulomb characteristic directions and Riemann step
 # ======================================================================
 
+
 def alpha_slope_mc(psi: float, phi: float) -> float:
     """Slope dy/dx of α-line at ψ for Mohr-Coulomb with friction angle φ."""
     return np.tan(psi - np.pi / 4.0 + phi / 2.0)
@@ -111,7 +113,7 @@ def riemann_step_mc(P: Node, Q: Node, c: float, phi: float) -> Node:
     a = np.log(P.sigma) - 2.0 * tanphi * P.psi
     b = np.log(Q.sigma) + 2.0 * tanphi * Q.psi
     pbar_R = np.exp(0.5 * (a + b))
-    psi_R  = (b - a) / (4.0 * tanphi)
+    psi_R = (b - a) / (4.0 * tanphi)
 
     # Predictor
     x_R, y_R = _intersect_mc(P, Q, P.psi, Q.psi, phi)
@@ -141,6 +143,7 @@ def _intersect_mc(
 # Mohr-Coulomb Riemann step WITH GRAVITY (body force +γ ĵ, y-down)
 # ======================================================================
 
+
 def riemann_step_mc_gravity(
     P: Node, Q: Node, c: float, phi: float, gamma: float, n_iter: int = 5
 ) -> Node:
@@ -164,7 +167,7 @@ def riemann_step_mc_gravity(
     a0 = np.log(P.sigma) - 2.0 * tanphi * P.psi
     b0 = np.log(Q.sigma) + 2.0 * tanphi * Q.psi
     pbar_R = np.exp(0.5 * (a0 + b0))
-    psi_R  = (b0 - a0) / (4.0 * tanphi)
+    psi_R = (b0 - a0) / (4.0 * tanphi)
     x_R, y_R = _intersect_mc(P, Q, P.psi, Q.psi, phi)
 
     for _ in range(int(n_iter)):
@@ -175,8 +178,8 @@ def riemann_step_mc_gravity(
         a = np.log(P.sigma) - 2.0 * tanphi * P.psi + rhs_a
         b = np.log(Q.sigma) + 2.0 * tanphi * Q.psi + rhs_b
         ln_pbar_R = 0.5 * (a + b)
-        psi_R     = (b - a) / (4.0 * tanphi)
-        pbar_R    = np.exp(ln_pbar_R)
+        psi_R = (b - a) / (4.0 * tanphi)
+        pbar_R = np.exp(ln_pbar_R)
 
         psi_a = 0.5 * (P.psi + psi_R)
         psi_b = 0.5 * (Q.psi + psi_R)

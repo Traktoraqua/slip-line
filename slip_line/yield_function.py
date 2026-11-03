@@ -164,7 +164,9 @@ class MohrCoulombYield:
 
     def Nq(self) -> float:
         """Nq = tan²(π/4 + φ/2) · exp(π·tan φ)."""
-        return np.tan(np.pi / 4.0 + self.phi / 2.0) ** 2 * np.exp(np.pi * np.tan(self.phi))
+        return np.tan(np.pi / 4.0 + self.phi / 2.0) ** 2 * np.exp(
+            np.pi * np.tan(self.phi)
+        )
 
     def Nc(self) -> float:
         """Nc = (Nq − 1) / tan φ.  (Prandtl formula, weightless, no surcharge.)"""
