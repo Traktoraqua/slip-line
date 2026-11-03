@@ -13,9 +13,9 @@ from slip_line.plot import plot_mc_slip_lines
 from slip_line.solver import MohrCoulombPrandtlSolver
 
 cases = [
-    dict(phi_deg=20, label="phi20"),
-    dict(phi_deg=30, label="phi30"),
-    dict(phi_deg=40, label="phi40"),
+    {"phi_deg": 20, "label": "phi20"},
+    {"phi_deg": 30, "label": "phi30"},
+    {"phi_deg": 40, "label": "phi40"},
 ]
 
 for case in cases:

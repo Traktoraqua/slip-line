@@ -14,15 +14,15 @@ from slip_line.plot import plot_disk_slip_lines
 from slip_line.solver import DiskPrandtlSolver
 
 cases = [
-    ("plot_disk_p050_r050.png", dict(p=0.50, r=0.50)),  # user's case
-    ("plot_disk_p050_r020.png", dict(p=0.50, r=0.20)),
-    ("plot_disk_p045_r050.png", dict(p=0.45, r=0.50)),
-    ("plot_disk_p040_r050.png", dict(p=0.40, r=0.50)),  # right at the threshold
+    ("plot_disk_p050_r050.png", {"p": 0.50, "r": 0.50}),  # user's case
+    ("plot_disk_p050_r020.png", {"p": 0.50, "r": 0.20}),
+    ("plot_disk_p045_r050.png", {"p": 0.45, "r": 0.50}),
+    ("plot_disk_p040_r050.png", {"p": 0.40, "r": 0.50}),  # right at the threshold
     (
         "plot_disk_p035_r050.png",
-        dict(p=0.35, r=0.50),
+        {"p": 0.35, "r": 0.50},
     ),  # below threshold (no parallel zone)
-    ("plot_disk_p050_r100.png", dict(p=0.50, r=1.00)),
+    ("plot_disk_p050_r100.png", {"p": 0.50, "r": 1.00}),
 ]
 
 print(

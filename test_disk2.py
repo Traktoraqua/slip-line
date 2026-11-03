@@ -28,10 +28,10 @@ with open("dbg.out", "w") as f:
         )
 
 cases = [
-    ("plot_disk_p025.png", dict(p=0.25, r=0.0)),
-    ("plot_disk_p050.png", dict(p=0.50, r=0.0)),
-    ("plot_disk_p010.png", dict(p=0.10, r=0.0)),
-    ("plot_disk_p04_r05.png", dict(p=0.40, r=0.5)),
+    ("plot_disk_p025.png", {"p": 0.25, "r": 0.0}),
+    ("plot_disk_p050.png", {"p": 0.50, "r": 0.0}),
+    ("plot_disk_p010.png", {"p": 0.10, "r": 0.0}),
+    ("plot_disk_p04_r05.png", {"p": 0.40, "r": 0.5}),
 ]
 
 for name, kw in cases:

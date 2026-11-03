@@ -15,11 +15,11 @@ from slip_line.plot import plot_mc_disk_slip_lines
 from slip_line.solver import MohrCoulombDiskPrandtlSolver
 
 cases = [
-    ("plot_mc_disk_phi20_p025_r0.png", dict(phi_deg=20, p=0.25, r=0.0)),
-    ("plot_mc_disk_phi30_p025_r0.png", dict(phi_deg=30, p=0.25, r=0.0)),
-    ("plot_mc_disk_phi30_p050_r0.png", dict(phi_deg=30, p=0.50, r=0.0)),
-    ("plot_mc_disk_phi30_p040_r05.png", dict(phi_deg=30, p=0.40, r=0.5)),
-    ("plot_mc_disk_phi20_p010_r0.png", dict(phi_deg=20, p=0.10, r=0.0)),
+    ("plot_mc_disk_phi20_p025_r0.png", {"phi_deg": 20, "p": 0.25, "r": 0.0}),
+    ("plot_mc_disk_phi30_p025_r0.png", {"phi_deg": 30, "p": 0.25, "r": 0.0}),
+    ("plot_mc_disk_phi30_p050_r0.png", {"phi_deg": 30, "p": 0.50, "r": 0.0}),
+    ("plot_mc_disk_phi30_p040_r05.png", {"phi_deg": 30, "p": 0.40, "r": 0.5}),
+    ("plot_mc_disk_phi20_p010_r0.png", {"phi_deg": 20, "p": 0.10, "r": 0.0}),
 ]
 
 print(

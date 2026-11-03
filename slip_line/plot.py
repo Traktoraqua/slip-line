@@ -69,7 +69,7 @@ def plot_slip_lines(
             "",
             xy=(xi, 0.02 * B),
             xytext=(xi, -0.32 * B),
-            arrowprops=dict(arrowstyle="->", color="darkgreen", lw=1.4),
+            arrowprops={"arrowstyle": "->", "color": "darkgreen", "lw": 1.4},
             zorder=8,
         )
 
@@ -98,7 +98,7 @@ def plot_slip_lines(
         va="top",
         ha="left",
         fontsize=10,
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.85),
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85},
     )
 
     ax.text(
@@ -184,7 +184,7 @@ def plot_mc_slip_lines(
             "",
             xy=(xi, 0.02 * B),
             xytext=(xi, -0.32 * B),
-            arrowprops=dict(arrowstyle="->", color="darkgreen", lw=1.4),
+            arrowprops={"arrowstyle": "->", "color": "darkgreen", "lw": 1.4},
             zorder=8,
         )
 
@@ -214,7 +214,7 @@ def plot_mc_slip_lines(
         va="top",
         ha="left",
         fontsize=10,
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.85),
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.85},
     )
 
     ax.text(
@@ -282,7 +282,7 @@ def plot_disk_slip_lines(
     B_s = solver.B_s
 
     fig, (ax, axp) = plt.subplots(
-        1, 2, figsize=(14, 6.5), gridspec_kw=dict(width_ratios=[2.2, 1.0])
+        1, 2, figsize=(14, 6.5), gridspec_kw={"width_ratios": [2.2, 1.0]}
     )
 
     # ---- slip lines (right half + mirror) ----
@@ -355,7 +355,7 @@ def plot_disk_slip_lines(
         "",
         xy=(0, y_c - 0.05 * D),
         xytext=(0, y_c - 0.55 * D),
-        arrowprops=dict(arrowstyle="->", color="darkgreen", lw=2.5),
+        arrowprops={"arrowstyle": "->", "color": "darkgreen", "lw": 2.5},
     )
     ax.text(0.05 * D, y_c - 0.30 * D, "Q", color="darkgreen", fontsize=14, va="center")
 
@@ -392,7 +392,7 @@ def plot_disk_slip_lines(
         ha="left",
         fontsize=10,
         family="monospace",
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.9),
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.9},
     )
 
     ax.set_aspect("equal")
@@ -474,7 +474,7 @@ def plot_mc_disk_slip_lines(
     B_s = solver.B_s
 
     fig, (ax, axp) = plt.subplots(
-        1, 2, figsize=(14, 6.5), gridspec_kw=dict(width_ratios=[2.2, 1.0])
+        1, 2, figsize=(14, 6.5), gridspec_kw={"width_ratios": [2.2, 1.0]}
     )
 
     alpha_lines = solver.all_alpha_lines()
@@ -544,7 +544,7 @@ def plot_mc_disk_slip_lines(
         "",
         xy=(0, y_c - 0.05 * D),
         xytext=(0, y_c - 0.55 * D),
-        arrowprops=dict(arrowstyle="->", color="darkgreen", lw=2.5),
+        arrowprops={"arrowstyle": "->", "color": "darkgreen", "lw": 2.5},
     )
     ax.text(0.05 * D, y_c - 0.30 * D, "Q", color="darkgreen", fontsize=14, va="center")
 
@@ -582,7 +582,7 @@ def plot_mc_disk_slip_lines(
         ha="left",
         fontsize=10,
         family="monospace",
-        bbox=dict(boxstyle="round", facecolor="white", alpha=0.9),
+        bbox={"boxstyle": "round", "facecolor": "white", "alpha": 0.9},
     )
 
     ax.set_aspect("equal")
@@ -697,16 +697,16 @@ def _velocity_arrows(ax, pts, arrow_len, v0):
     P = np.array(list(pts.values()))
     speed = np.hypot(P[:, 2], P[:, 3])
     speed_max = speed.max()
-    q_kw = dict(
-        angles="xy",
-        scale_units="xy",
-        scale=speed_max / arrow_len,
-        color=_C_ARROW,
-        width=0.0032,
-        headwidth=4,
-        headlength=4.5,
-        zorder=5,
-    )
+    q_kw = {
+        "angles": "xy",
+        "scale_units": "xy",
+        "scale": speed_max / arrow_len,
+        "color": _C_ARROW,
+        "width": 0.0032,
+        "headwidth": 4,
+        "headlength": 4.5,
+        "zorder": 5,
+    }
     if np.ptp(speed) < 1e-6 * speed_max:
         v_lbl = f"soil velocity, |V| = {speed_max / v0:.3f}·V₀"
     else:
@@ -733,12 +733,12 @@ def _region_labels(ax, samples, names, fan_shift=1.35):
             ha="center",
             va="center",
             zorder=8,
-            bbox=dict(
-                boxstyle="round,pad=0.2",
-                facecolor="white",
-                edgecolor="none",
-                alpha=0.85,
-            ),
+            bbox={
+                "boxstyle": "round,pad=0.2",
+                "facecolor": "white",
+                "edgecolor": "none",
+                "alpha": 0.85,
+            },
         )
 
 
@@ -754,7 +754,7 @@ def _hodograph(axh, samples, v0, v_jump, lim, markersize=4):
             "",
             xy=(sgn * v_jump[0], v_jump[1]),
             xytext=(0, 0),
-            arrowprops=dict(arrowstyle="-|>", color=_C_JUMP, lw=1.8),
+            arrowprops={"arrowstyle": "-|>", "color": _C_JUMP, "lw": 1.8},
         )
     axh.plot([0, 0], [0, 1], color="black", linewidth=2)
     axh.plot(0, 0, "ks", markersize=7)
@@ -851,7 +851,7 @@ def plot_prandtl_velocity(
         "",
         xy=(0, -0.08 * B),
         xytext=(0, -0.42 * B),
-        arrowprops=dict(arrowstyle="-|>", color="black", lw=2),
+        arrowprops={"arrowstyle": "-|>", "color": "black", "lw": 2},
         zorder=7,
     )
     ax.text(0.05 * B, -0.27 * B, "V₀", fontsize=13, va="center")
@@ -884,7 +884,7 @@ def plot_prandtl_velocity(
             [0, sgn * vI[0]], [1, vI[1]], color=_C_INK, linestyle="--", linewidth=1
         )
 
-    lbl = dict(fontsize=10, color=_C_INK)
+    lbl = {"fontsize": 10, "color": _C_INK}
     axh.text(-0.06, 1.06, "F  footing", ha="right", va="top", **lbl)
     axh.text(vI[0] + 0.08, vI[1], "I", ha="left", va="center", **lbl)
     axh.text(vIII[0] + 0.08, vIII[1], "III", ha="left", va="center", **lbl)
@@ -1017,7 +1017,7 @@ def plot_disk_velocity(
         "",
         xy=(0, y_a + 0.22 * x_lim),
         xytext=(0, y_a),
-        arrowprops=dict(arrowstyle="-|>", color="black", lw=2),
+        arrowprops={"arrowstyle": "-|>", "color": "black", "lw": 2},
         zorder=7,
     )
     ax.text(0.03 * x_lim, y_a + 0.11 * x_lim, "V₀", fontsize=13, va="center", zorder=7)
@@ -1048,7 +1048,7 @@ def plot_disk_velocity(
         family="monospace",
         color=_C_INK,
         zorder=9,
-        bbox=dict(boxstyle="round", facecolor="white", edgecolor=_C_NET),
+        bbox={"boxstyle": "round", "facecolor": "white", "edgecolor": _C_NET},
     )
 
     ax.set_xlim(-x_lim, x_lim)
