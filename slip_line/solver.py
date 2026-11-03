@@ -1478,7 +1478,7 @@ class DiskPrandtlSolver:
         """
         if self.use_parallel_zone:
             # Distribute n_disk + 1 nodes with one exactly on θ = θ_0.
-            n_inner = max(1, int(round(self.n_disk * self.theta_0 / self.theta_max)))
+            n_inner = max(1, round(self.n_disk * self.theta_0 / self.theta_max))
             n_outer = max(1, self.n_disk - n_inner)
             inner = list(np.linspace(0.0, self.theta_0, n_inner + 1))
             outer = list(np.linspace(self.theta_0, self.theta_max, n_outer + 1))[1:]
@@ -1526,9 +1526,10 @@ class DiskPrandtlSolver:
             prev = mesh[-1]
             row: list[Node] = []
             for i in range(len(prev) - 1):
+                # A numerical failure ends the row; other errors are bugs.
                 try:
                     N = riemann_step(prev[i], prev[i + 1], cu)
-                except Exception:
+                except (ArithmeticError, ValueError):
                     N = None
                 if (
                     N is None
@@ -1902,7 +1903,7 @@ class MohrCoulombDiskPrandtlSolver:
         ψ has a kink there).
         """
         if self.use_parallel_zone:
-            n_inner = max(1, int(round(self.n_disk * self.theta_0 / self.theta_max)))
+            n_inner = max(1, round(self.n_disk * self.theta_0 / self.theta_max))
             n_outer = max(1, self.n_disk - n_inner)
             inner = list(np.linspace(0.0, self.theta_0, n_inner + 1))
             outer = list(np.linspace(self.theta_0, self.theta_max, n_outer + 1))[1:]
@@ -1942,9 +1943,10 @@ class MohrCoulombDiskPrandtlSolver:
             prev = mesh[-1]
             row: list[Node] = []
             for i in range(len(prev) - 1):
+                # A numerical failure ends the row; other errors are bugs.
                 try:
                     N = riemann_step_mc(prev[i], prev[i + 1], self.c, self.phi)
-                except Exception:
+                except (ArithmeticError, ValueError):
                     N = None
                 if (
                     N is None
