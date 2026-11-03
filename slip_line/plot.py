@@ -5,14 +5,17 @@ Internal y is depth (positive down); we flip for display.
 """
 
 from __future__ import annotations
-import numpy as np
-import matplotlib.pyplot as plt
+
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.collections import PolyCollection
 
 from .solver import (
-    PrandtlSolver, DiskPrandtlSolver, MohrCoulombPrandtlSolver,
+    DiskPrandtlSolver,
     MohrCoulombDiskPrandtlSolver,
+    MohrCoulombPrandtlSolver,
+    PrandtlSolver,
 )
 from .velocity import DiskVelocityField, PrandtlVelocityField
 

@@ -3,6 +3,7 @@ Boundary condition dataclasses for slip line analysis.
 """
 
 from dataclasses import dataclass
+
 import numpy as np
 
 
@@ -44,7 +45,6 @@ class FreeSurfaceBoundary:
     σ_yy = 0, τ_xy = 0 everywhere on this boundary.
     No parameters needed — state is fully determined by the Tresca yield criterion.
     """
-    pass
 
 
 @dataclass

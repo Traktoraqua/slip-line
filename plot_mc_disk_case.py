@@ -1,12 +1,15 @@
 import matplotlib
+
 matplotlib.use("Agg")
 from pathlib import Path
+
 PLOTS = Path(__file__).parent / 'plots'
 PLOTS.mkdir(exist_ok=True)
 import numpy as np
+
 from slip_line.boundary import DiskFoundationBoundary
-from slip_line.solver import MohrCoulombDiskPrandtlSolver
 from slip_line.plot import plot_mc_disk_slip_lines
+from slip_line.solver import MohrCoulombDiskPrandtlSolver
 
 phi_deg = 30.0
 p = 0.5

@@ -1,7 +1,9 @@
 """Inspect disk Region I corner β-line endpoint vs fan_I expected angle."""
 import matplotlib
+
 matplotlib.use("Agg")
 import numpy as np
+
 from slip_line.boundary import DiskFoundationBoundary
 from slip_line.solver import DiskPrandtlSolver
 

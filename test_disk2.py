@@ -1,14 +1,16 @@
 """Re-render disk plots with curved Region I characteristics."""
 import matplotlib
+
 matplotlib.use('Agg')
 from pathlib import Path
+
 PLOTS = Path(__file__).parent / 'plots'
 PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
 
 from slip_line.boundary import DiskFoundationBoundary
-from slip_line.solver import DiskPrandtlSolver
 from slip_line.plot import plot_disk_slip_lines
+from slip_line.solver import DiskPrandtlSolver
 
 # Debug: dump Region I mesh for p=0.25, n_disk=8
 d = DiskFoundationBoundary(cu=1, D=1, p=0.10, r=0.8)
@@ -19,8 +21,7 @@ with open('dbg.out', 'w') as f:
     f.write(f'Rows: {len(s_dbg.region_I_mesh)}\n')
     for k, row in enumerate(s_dbg.region_I_mesh):
         f.write(f'--- Row {k} ({len(row)} nodes) ---\n')
-        for n in row:
-            f.write(f'  ({n.x:+.4f}, {n.y:+.4f})  psi={n.psi*180/3.14159:6.2f} deg\n')
+        f.writelines(f'  ({n.x:+.4f}, {n.y:+.4f})  psi={n.psi*180/3.14159:6.2f} deg\n' for n in row)
 
 cases = [
     ('plot_disk_p025.png',    dict(p=0.25, r=0.0)),

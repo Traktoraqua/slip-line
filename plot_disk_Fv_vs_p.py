@@ -6,8 +6,10 @@ Right panel : extraction phase,  p ∈ [0.5, 1], by symmetry F_v(p) = F_v(1−p)
 Three curves per panel: r = 0, 0.5, 1.
 """
 import matplotlib
+
 matplotlib.use("Agg")
 from pathlib import Path
+
 PLOTS = Path(__file__).parent / 'plots'
 PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt

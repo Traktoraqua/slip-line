@@ -1,5 +1,6 @@
 """Quick sanity test for MC disk parallel-\u03b2 mechanism."""
 import numpy as np
+
 from slip_line.boundary import DiskFoundationBoundary
 from slip_line.solver import MohrCoulombDiskPrandtlSolver
 
@@ -23,7 +24,7 @@ for phi_deg, p, r in cases:
     s = MohrCoulombDiskPrandtlSolver(disk=disk, c=c, phi=phi, n_fan=20, n_disk=40)
     out = s.solve()
     print(f"{phi_deg:5.1f} {p:5.2f} {r:4.1f}  "
-          f"{str(out['parallel_beta_zone']):>9s}  "
+          f"{out['parallel_beta_zone']!s:>9s}  "
           f"{out['theta_0_deg']:8.2f}  {out['theta_max_deg']:10.2f}  "
           f"{out['fan_angle_deg']:8.2f}  "
           f"{out['Q_over_Dc']:9.4f}  "

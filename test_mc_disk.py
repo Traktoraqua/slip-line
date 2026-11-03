@@ -1,15 +1,17 @@
 """Mohr-Coulomb disk foundation slip-line plots."""
 import matplotlib
+
 matplotlib.use("Agg")
 from pathlib import Path
+
 PLOTS = Path(__file__).parent / 'plots'
 PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
 import numpy as np
 
 from slip_line.boundary import DiskFoundationBoundary
-from slip_line.solver import MohrCoulombDiskPrandtlSolver
 from slip_line.plot import plot_mc_disk_slip_lines
+from slip_line.solver import MohrCoulombDiskPrandtlSolver
 
 cases = [
     ('plot_mc_disk_phi20_p025_r0.png',  dict(phi_deg=20, p=0.25, r=0.0)),

@@ -1,13 +1,15 @@
 """Generate Mohr-Coulomb Prandtl slip-line field plots."""
 import matplotlib
+
 matplotlib.use("Agg")
 from pathlib import Path
+
 PLOTS = Path(__file__).parent / 'plots'
 PLOTS.mkdir(exist_ok=True)
 import numpy as np
 
-from slip_line.solver import MohrCoulombPrandtlSolver
 from slip_line.plot import plot_mc_slip_lines
+from slip_line.solver import MohrCoulombPrandtlSolver
 
 cases = [
     dict(phi_deg=20, label="phi20"),

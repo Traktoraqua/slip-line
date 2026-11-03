@@ -31,14 +31,17 @@ Collapse load:
 """
 
 from __future__ import annotations
+
 import numpy as np
 
-from .yield_function import TrescaYield, MohrCoulombYield
-from .boundary import FoundationBoundary, DiskFoundationBoundary
+from .boundary import DiskFoundationBoundary, FoundationBoundary
 from .slip_line_field import (
-    Node, alpha_slope, beta_slope, riemann_step,
-    alpha_slope_mc, beta_slope_mc, riemann_step_mc, riemann_step_mc_gravity,
+    Node,
+    riemann_step,
+    riemann_step_mc,
+    riemann_step_mc_gravity,
 )
+from .yield_function import MohrCoulombYield, TrescaYield
 
 
 class PrandtlSolver:
@@ -1636,7 +1639,7 @@ class MohrCoulombDiskPrandtlSolver:
 
     def __init__(
         self,
-        disk: 'DiskFoundationBoundary',
+        disk: DiskFoundationBoundary,
         c: float,
         phi: float,
         n_fan: int = 20,

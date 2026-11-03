@@ -7,8 +7,10 @@ values of the dimensionless weight γ·B/c.
 """
 
 import matplotlib
+
 matplotlib.use('Agg')
 from pathlib import Path
+
 PLOTS = Path(__file__).parent / 'plots'
 PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt

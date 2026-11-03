@@ -10,9 +10,10 @@ Two foundation geometries available:
 """
 
 import numpy as np
-from slip_line.boundary import FoundationBoundary, DiskFoundationBoundary
-from slip_line.solver import PrandtlSolver, DiskPrandtlSolver
-from slip_line.plot import plot_slip_lines, plot_disk_slip_lines
+
+from slip_line.boundary import DiskFoundationBoundary, FoundationBoundary
+from slip_line.plot import plot_disk_slip_lines, plot_slip_lines
+from slip_line.solver import DiskPrandtlSolver, PrandtlSolver
 
 
 def get_float(prompt, default=None, lo=-np.inf, hi=np.inf):
@@ -56,12 +57,12 @@ def run_flat():
     q = solver.solve()
     print(" done.\n")
 
-    print(f"  ┌───────────────────────────────────────────┐")
+    print("  ┌───────────────────────────────────────────┐")
     print(f"  │  Collapse load  q   = {q:>10.4f} kPa       │")
     print(f"  │  q / cu             = {q/cu:>10.4f}           │")
     print(f"  │  Prandtl exact      = {np.pi + 2:>10.4f}  (π+2)    │")
     print(f"  │  Fan angle          = {np.degrees(solver.delta_psi):>9.2f}°           │")
-    print(f"  └───────────────────────────────────────────┘\n")
+    print("  └───────────────────────────────────────────┘\n")
 
     plot_slip_lines(solver, q)
 
@@ -81,19 +82,19 @@ def run_disk():
     result = solver.solve()
     print(" done.\n")
 
-    print(f"  ┌────────────────────────────────────────────────┐")
+    print("  ┌────────────────────────────────────────────────┐")
     print(f"  │  p (penetration ratio)   = {p:>8.4f}             │")
     print(f"  │  B_s (contact half-width) = {result['B_s']:>8.4f} m           │")
     print(f"  │  θ_max                   = {result['theta_max_deg']:>8.2f}°            │")
     print(f"  │  Fan angle               = {result['fan_angle_deg']:>8.2f}°            │")
-    print(f"  │                                                │")
+    print("  │                                                │")
     print(f"  │  σ_n / cu  at edge       = {result['sigma_n_at_edge']/cu:>8.4f}             │")
     print(f"  │  σ_n / cu  at bottom     = {result['sigma_n_at_bottom']/cu:>8.4f}             │")
-    print(f"  │                                                │")
+    print("  │                                                │")
     print(f"  │  Q (per unit length)     = {result['Q_per_unit_length']:>8.4f} kN/m         │")
     print(f"  │  Q / D                   = {result['Q_over_D']:>8.4f} kPa           │")
     print(f"  │  Q / (D·cu)              = {result['Q_over_D_over_cu']:>8.4f}             │")
-    print(f"  └────────────────────────────────────────────────┘\n")
+    print("  └────────────────────────────────────────────────┘\n")
 
     plot_disk_slip_lines(solver)
 

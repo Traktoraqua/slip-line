@@ -4,8 +4,10 @@ Both forces normalised by c·R vs z/R ∈ [0, 1] (p ∈ [0, 0.5]).
 phi = 30°, four roughness values: r = 0, 0.5, 0.8, 1.0.
 """
 import matplotlib
+
 matplotlib.use("Agg")
 from pathlib import Path
+
 PLOTS = Path(__file__).parent / 'plots'
 PLOTS.mkdir(exist_ok=True)
 import matplotlib.pyplot as plt
