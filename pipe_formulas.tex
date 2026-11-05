@@ -281,6 +281,89 @@ loddlinja gjennom rørsenteret, og $L\sin\theta$ under kontaktnivået.
 \end{figure}
 
 % ----------------------------------------------------------------------
+\section{Hastigheten langs overflaten}
+% ----------------------------------------------------------------------
+
+Røret flyttes som et stivt legeme med farten $v_0$, sideveis i (a) og
+loddrett nedover i (b).  Rørets hastighetskomponent langs radien, ut i
+jorda, er i punktet $t$
+\begin{equation}
+  w(t) = v_0 \sin t \quad\text{(a)}, \qquad w(t) = v_0 \cos t \quad\text{(b)} .
+\end{equation}
+Ved skrå bevegelse er $w(t)$ summen av bidragene fra den vannrette og den
+loddrette komponenten.
+
+Hastigheten deles i komponenten $u$ langs $\alpha$-linjene og $v$ langs
+$\beta$-linjene.  Geiringers ligninger er $du - v\,d\psi = 0$ langs en
+$\alpha$-linje og $dv + u\,d\psi = 0$ langs en $\beta$-linje.  Den ytre
+$\alpha$-linja grenser mot jord i ro, så der er $v = 0$.  Langs de rette
+$\beta$-linjene i sone~I, de radielle i viften og de rette i sone~III er
+$\psi$ konstant, så $v$ er konstant langs hver av dem.  Alle ender på den
+ytre $\alpha$-linja, og dermed er $v = 0$ i hele den plastiske sonen.  Da er
+også $du = 0$: jorda strømmer langs $\alpha$-linjene med konstant fart.
+
+$\alpha$-linja fra rørpunktet $t$ danner vinkelen $\kappa$ med tangenten.
+Normalbetingelsen $u\sin\kappa = w(t)$ gir farten $u = w(t)/\sin\kappa$
+langs hele linja.  Av samme grunn som for $\ell$ krysser linja
+$\beta$-linja fra E i avstanden $\rho = R(\varphi - t)\sin\kappa$ fra E.
+Den følger sirkelen med radius $\rho$ gjennom viften og møter overflaten i
+avstanden $s = \sqrt2\,\rho = L(1 - t/\varphi)$ fra E.  I sone~III danner
+$\alpha$-linjene $45^\circ$ med overflaten.  Komponentene normalt på
+overflaten (ut av bakken) og langs den (bort fra røret) er derfor like
+store, $u/\sqrt2$.  Med $\sqrt2\sin\kappa = \sqrt{1 \mp r}$ blir
+\begin{equation}
+  v_n(s) = v_t(s) = \frac{w(t)}{\sqrt{1 \mp r}} ,
+  \qquad t = \varphi\Bigl(1 - \frac{s}{L}\Bigr) ,
+  \qquad 0 \le s \le L ,
+  \label{eq:vs}
+\end{equation}
+altså
+\begin{equation}
+  \text{(a)}\quad v_n = \frac{v_0 \sin\bigl(\varphi(1 - s/L)\bigr)}{\sqrt{1 - r}} ,
+  \qquad
+  \text{(b)}\quad v_n = \frac{v_0 \cos\bigl(\varphi(1 - s/L)\bigr)}{\sqrt{1 + r}} .
+\end{equation}
+\begin{itemize}
+  \item Overflaten fra E til F er kontaktbuen speilet og strukket med
+        faktoren $\sqrt{1 \mp r}$: E svarer til E, og F til rørbunnen.
+        Hvert overflatepunkt får normalhastigheten til sitt rørpunkt, delt
+        på $\sqrt{1 \mp r}$.  $\theta$ inngår ikke.
+  \item I (a) er farten størst ved E, $v_0\sin\varphi/\sqrt{1 - r}$, og
+        avtar til null ved F.  I (b) er den minst ved E,
+        $v_0\cos\varphi/\sqrt{1 + r}$, og størst ved F, $v_0/\sqrt{1 + r}$.
+        Utenfor F er jorda i ro, så i (b) faller farten brått til null: den
+        ytre $\alpha$-linja er et hastighetssprang med størrelsen
+        $v_0/\sin\kappa$.
+  \item Volumet stemmer: $\int_0^L v_n\,ds = R\int_0^\varphi w\,dt$, det
+        røret fortrenger.  Det er $v_0 P$ i (a) og $v_0 R\sin\varphi$ (halve
+        kontaktbredden ganger $v_0$) i (b).
+  \item Den vannrette komponenten er $v_n(\cos\theta + \sin\theta)$, og den
+        loddrette, oppover, er $v_n(\cos\theta - \sin\theta)$.
+  \item For $r \to 1$ i (a) krymper sonen mot null, mens farten vokser som
+        $1/\sqrt{1 - r}$.
+\end{itemize}
+
+\subsection*{Med parallellsone, (a), $\varphi > t_0$}
+
+I parallellsonen er $\beta$-linjene parallelle med dem i sone~III.  Vinkelen
+mot radien er da $\kappa(t) = t + \theta - \pi/4$ for $t_0 \le t \le
+\varphi$, og $\sqrt2\sin\kappa(t) = \sin(t + \theta) - \cos(t + \theta)$.
+Strømrøret fra buelementet $R\,dt$ har bredden $R\sin\kappa(t)\,dt$ og
+møter overflaten under $45^\circ$, så $ds = \sqrt2\,R\sin\kappa(t)\,dt$.
+Nærmest E, for $0 \le s \le s_0$, er
+\begin{align}
+  v_n = v_t &= \frac{w(t)}{\sin(t + \theta) - \cos(t + \theta)} , \\
+  \frac{s}{R} &= \cos(t + \theta) + \sin(t + \theta)
+                 - \cos(\varphi + \theta) - \sin(\varphi + \theta) ,
+\end{align}
+der $t$ går fra $\varphi$ ved E til $t_0$ ved
+$s_0/R = \sqrt{1 + r} - \cos(\varphi + \theta) - \sin(\varphi + \theta)$.
+Lenger ut, for $s_0 \le s \le L$, gjelder \eqref{eq:vs} med
+$t = t_0\bigl(1 - (s - s_0)/(L - s_0)\bigr)$ og $L$ fra \eqref{eq:Lpar}.
+Ved $t_0$ er $\sin(t_0 + \theta) - \cos(t_0 + \theta) = \sqrt{1 - r}$, så
+farten er kontinuerlig.
+
+% ----------------------------------------------------------------------
 \section{Merknader}
 % ----------------------------------------------------------------------
 
@@ -331,6 +414,13 @@ med \texttt{n\_disk=480}, for $P/R = 0{,}04$--$1$, $r = 0$--$1$ og
 $\theta = 0$--$30^\circ$.  Unntaket er $r = 1$ i (a) uten parallellsone, der
 sone~I ikke har noen utstrekning og koden beholder en plassholder for
 størrelsen på sone~II og III.
+
+Overflatehastigheten er sammenlignet med \texttt{InclinedDiskVelocityField}
+i \texttt{lateral.py} på det samme nettet, med \texttt{beta=0} for (a) og
+\texttt{beta} $= \pi/2$ for (b).  Avviket minker omtrent med kvadratet av
+antall noder, fra $2\cdot10^{-2}v_0$ med \texttt{n\_disk=30} til
+$8\cdot10^{-5}v_0$ med \texttt{n\_disk=480}, for $P/R = 0{,}04$--$1$,
+$r = 0$--$0{,}9$ og $\theta = 0$--$30^\circ$, med og uten parallellsone.
 
 Sammenhengen med koden:
 \begin{itemize}
