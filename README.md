@@ -29,8 +29,9 @@ uv run main.py
 The pipe simulations print their steps as tables:
 
 ```
-uv run run_penetration.py   # pipe sinking under its own weight, smooth and r = 0.75
-uv run run_lateral.py       # sink, push 0.2 m sideways, then 40 mm back
+uv run run_penetration.py               # pipe sinking under its own weight, smooth and r = 0.75
+uv run run_penetration_closed_form.py   # the same with closed-form formulas, ~10x faster
+uv run run_lateral.py                   # sink, push 0.2 m sideways, then 40 mm back
 ```
 
 `run_lateral.py` has a `REVERSING` switch at the top: `True` (default) makes the net carry the interface friction, reversing where the slip along the pipe changes sign; `False` lets the net angle be free.

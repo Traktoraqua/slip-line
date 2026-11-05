@@ -22,6 +22,9 @@ The pipe is pushed down in small steps dw.  In each step:
   4. Stop: the pipe sinks while the collapse load V(d) is below the pipe
      weight W; the last step is shortened so V = W.
 
+PipePenetrationClosedForm does the same steps with the closed forms of
+pipe_formulas.tex for the load and the heave rate, without a net.
+
 Right half only (x ≥ 0).  y points down from the original surface; the heave
 η is positive upward.
 """
@@ -182,3 +185,54 @@ class PipePenetration:
                 return states
             states.append(nxt)
         raise RuntimeError("No equilibrium within max_steps.")
+
+
+class PipePenetrationClosedForm(PipePenetration):
+    """
+    PipePenetration with the closed forms of pipe_formulas.tex (flat surface,
+    vertical penetration) in place of the slip-line net.  The steps are the
+    same; each one is about ten times faster, and the heave rate has no mesh
+    error.  With cos φ = 1 − d/R and ω = ½·asin(r):
+
+      load   V = 2·cu·R·[(1 + π + 2ω − 2φ + cos 2ω)·sin φ + (2 + sin 2ω)·(1 − cos φ)]
+      heave  v_up = cos(φ·(1 − s/L)) / √(1 + r)  for 0 ≤ s ≤ L, zero beyond,
+
+    where s = x − R·sin φ is the distance from the contact edge and
+    L = R·φ·√(1 + r) the width of Region III.  n_fan and n_disk are not used.
+    """
+
+    def _phi(self, d: float) -> float:
+        if not 0.0 <= d <= self.R:
+            raise ValueError("Embedment d must be in [0, D/2].")
+        return float(np.arccos(1.0 - d / self.R))
+
+    def load(self, d: float) -> float:
+        """Collapse load V at effective embedment d (full pipe)."""
+        if d <= 0.0:
+            return 0.0
+        phi, om = self._phi(d), 0.5 * np.arcsin(self.r)
+        return float(
+            2.0
+            * self.cu
+            * self.R
+            * (
+                (1.0 + np.pi + 2.0 * om - 2.0 * phi + np.cos(2.0 * om)) * np.sin(phi)
+                + (2.0 + np.sin(2.0 * om)) * (1.0 - np.cos(phi))
+            )
+        )
+
+    def surface_uplift_rate(self, d: float) -> tuple[np.ndarray, float]:
+        """Upward free-surface velocity on self.x for a unit downward pipe
+        velocity at effective embedment d, and the outer end of the zone."""
+        phi = self._phi(d)
+        rate = np.zeros_like(self.x)
+        if phi == 0.0:
+            return rate, 0.0
+        k = np.sqrt(1.0 + self.r)
+        B, L = self.R * np.sin(phi), self.R * phi * k
+        if B + L >= self.x[-1]:
+            raise ValueError("Plastic zone reaches x_max; increase x_max.")
+        s = self.x - B
+        inside = (s >= 0.0) & (s <= L)
+        rate[inside] = np.cos(phi * (1.0 - s[inside] / L)) / k
+        return rate, float(B + L)

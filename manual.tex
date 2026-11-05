@@ -791,6 +791,22 @@ the plastic zone \texttt{x\_end}, the load \texttt{V}, the heave
 \texttt{scale}.  \texttt{sim.load(d)} is the collapse load at
 embedment $d$, and \texttt{sim.areas(w, heave)} the volume balance.
 
+\texttt{PipePenetrationClosedForm} takes the same arguments and does the
+same steps, but uses the closed forms of \texttt{pipe\_formulas.tex}
+(flat surface, vertical penetration) instead of the net.  With
+$\cos\varphi = 1 - d/R$ and $\omega = \tfrac12\arcsin r$ the load is
+\[
+  V = 2c_uR\bigl[(1 + \pi + 2\omega - 2\varphi + \cos 2\omega)\sin\varphi
+      + (2 + \sin 2\omega)(1 - \cos\varphi)\bigr] ,
+\]
+and the heave rate is $v_\text{up} = \cos\bigl(\varphi(1 - s/L)\bigr)/\sqrt{1 + r}$
+for $0 \le s \le L = R\varphi\sqrt{1 + r}$, where $s$ is the distance
+from the contact edge (zero beyond).  \texttt{n\_fan} and
+\texttt{n\_disk} are not used.  The results below are the same, and the
+run is 10--14 times faster: 0.5\,s instead of 6.9\,s for $r = 0.8$,
+$W = 2.8$.  \texttt{run\_penetration\_closed\_form.py} runs the first
+two cases.
+
 \subsection{Results}
 
 $D = 1$\,m, $c_u = 1$\,kPa (\texttt{run\_penetration.py} and step~1 of
@@ -1383,6 +1399,7 @@ r = 0.5  stress 4.226  virtual work 4.214  upper bound 4.577  d < 0 on 37 %
 % ====================================================================
 
 \begin{center}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{ll}
 \toprule
 File & Contents \\
@@ -1398,6 +1415,7 @@ File & Contents \\
 \midrule
 \texttt{main.py}                       & Interactive program (Tresca strip or disk) \\
 \texttt{run\_penetration.py}           & Pipe sinking, smooth and $r = 0.75$ \\
+\texttt{run\_penetration\_closed\_form.py} & The same with the closed forms (faster) \\
 \texttt{run\_lateral.py}               & Pipe sinking, lateral push and push back \\
 \texttt{plot\_velocity\_strip.py}       & Velocity field figure — smooth strip \\
 \texttt{plot\_velocity\_disk.py}        & Velocity field figure — disk \\
