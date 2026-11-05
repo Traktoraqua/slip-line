@@ -188,11 +188,14 @@ class OneSidedDiskSolver(DiskPrandtlSolver):
         self.region_III_nodes = rows
 
     def complete(self) -> bool:
-        """True when Region I is the full triangular net (no node cut off)."""
+        """True when Region I is the full triangular net (no node cut off).
+
+        Counts from the contact chain itself: with a parallel zone that starts
+        close to the edge, the chain gets one node more than n_disk + 1.
+        """
+        n = len(self.disk_surface_nodes)
         mesh = self.region_I_mesh
-        return len(mesh) == self.n_disk + 1 and all(
-            len(row) == self.n_disk + 1 - k for k, row in enumerate(mesh)
-        )
+        return len(mesh) == n and all(len(row) == n - k for k, row in enumerate(mesh))
 
 
 class InclinedDiskVelocityField(DiskVelocityField):
