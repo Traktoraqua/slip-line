@@ -31,6 +31,7 @@ The pipe simulations print their steps as tables:
 ```
 uv run run_penetration.py               # pipe sinking under its own weight, smooth and r = 0.75
 uv run run_penetration_closed_form.py   # the same with closed-form formulas, ~10x faster
+uv run animate_penetration.py           # animation: pipe pushed to P/R = 0.5, with V against P
 uv run run_lateral.py                   # sink, push 0.2 m sideways, then 40 mm back
 ```
 
