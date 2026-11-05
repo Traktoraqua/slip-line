@@ -12,7 +12,7 @@ Slip-line (method of characteristics) analysis of the bearing capacity of founda
 - A lateral push of the pipe while it is free to move vertically (upper bound), followed by a push back
 - Plots of the slip-line fields
 
-The theory and API are described in `manual.tex` (LaTeX).
+The theory and API are described in `manual.tex` (LaTeX). `pipe_formulas.tex` (in Norwegian) gives closed-form horizontal and vertical collapse loads for a partly embedded pipe with a sloping surface beside it.
 
 ## Setup
 

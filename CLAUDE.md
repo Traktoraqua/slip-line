@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Slip-line (method of characteristics) analysis of bearing capacity for foundations on weightless/gravity soil. Python + numpy + matplotlib. `manual.tex` is the LaTeX user manual (theory, API, examples with expected output, figures) for all solvers, the velocity fields and the pipe simulations — consult it for the derivations. When the API or results change, update `manual.tex` and `README.md` too, and rerun the manual's examples so their expected output still holds.
+Slip-line (method of characteristics) analysis of bearing capacity for foundations on weightless/gravity soil. Python + numpy + matplotlib. `manual.tex` is the LaTeX user manual (theory, API, examples with expected output, figures) for all solvers, the velocity fields and the pipe simulations — consult it for the derivations. When the API or results change, update `manual.tex` and `README.md` too, and rerun the manual's examples so their expected output still holds. `pipe_formulas.tex` (Norwegian) gives closed-form H, V (lateral push, front half) and Q (vertical) for the Tresca pipe with a surface falling away at θ, checked against the code's contact stresses; its figure comes from `plot_pipe_formulas.py`, and it builds like the manual.
 
 Managed with `uv` (Python 3.13; numpy and matplotlib declared in `pyproject.toml`). There is no ruff config (defaults) and no pytest suite yet.
 
@@ -55,5 +55,5 @@ Conventions that matter across files:
 ## Repo notes
 
 - Generated PNGs are tracked in `plots/`. `Pipestab.numbers` is an unrelated, untracked file.
-- `manual.pdf` is a local build of the manual, untracked; don't commit it unless asked. LaTeX build files are in `.gitignore`.
+- `manual.pdf` and `pipe_formulas.pdf` are local builds, untracked; don't commit them unless asked. LaTeX build files are in `.gitignore`.
 - The local changes to `plots/mc_gravity_contact_pressure.png` and `plots/mc_gravity_phi30.png` are unrelated: never commit them.
