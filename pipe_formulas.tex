@@ -1,6 +1,7 @@
 % ======================================================================
 %  Closed-form collapse loads for a partly embedded pipe (Norwegian)
-%  Figure: plots/pipe_formulas.png (plot_pipe_formulas.py)
+%  Figures: plots/pipe_formulas.png (plot_pipe_formulas.py),
+%           plots/pipe_extent.png (plot_pipe_extent.py)
 % ======================================================================
 \documentclass[11pt,a4paper]{article}
 
@@ -201,6 +202,85 @@ Kontroll: med $\theta = 0$ og $r = 0$ gir $P = R$ bruddlasten $Q = 8cR = 4cD$,
 og $P/R = 0{,}5$ gir $Q/(cD) = 3{,}639$, som i manualen.
 
 % ----------------------------------------------------------------------
+\section{Hvor langt ut når sone~III?}
+% ----------------------------------------------------------------------
+
+På røret er $\sigma - 2c\psi = c(1 - 2\theta)$ den samme overalt.  Alle
+$\alpha$-linjene i sone~I har derfor samme verdi, og langs hver $\beta$-linje
+er både $\sigma$ og $\psi$ konstante: $\beta$-linjene i sone~I er rette.  Hver
+av dem går ut fra røret med vinkelen
+\begin{equation}
+  \kappa = \frac{\pi}{4} \mp \omega
+\end{equation}
+mot radien, og heller bakover mot rørbunnen (figur~\ref{fig:extent}a).  Den
+ytre $\alpha$-linja starter i rørbunnen og avgrenser den plastiske sonen.
+Den står vinkelrett på $\beta$-linjene, og buelementet $R\,dt$ danner
+vinkelen $\pi/2 - \kappa$ med dem.  Når startpunktet flyttes $dt$ langs buen
+mot kontaktkanten E, blir $\beta$-linja derfor $R\sin\kappa\,dt$ lengre.
+$\beta$-linja fra E har lengden
+\begin{equation}
+  \ell = R\,\varphi\sin\kappa .
+\end{equation}
+I viften er den ytre $\alpha$-linja en sirkel med radius $\ell$ om E, og
+sone~III er en rettvinklet, likebent trekant med kateter $\ell$.
+Hypotenusen ligger langs skråningen, så sone~III går fra E til punktet F i
+avstanden $L = \sqrt2\,\ell$, målt langs overflaten.
+
+\subsection*{Uten parallellsone}
+
+Med $\cos\omega \mp \sin\omega = \sqrt{1 \mp \sin 2\omega}$ blir
+\begin{equation}
+  \frac{L}{R} = \sqrt2\,\varphi \sin\Bigl(\frac{\pi}{4} \mp \omega\Bigr)
+              = \varphi\,(\cos\omega \mp \sin\omega)
+              = \varphi\sqrt{1 \mp r} ,
+  \label{eq:L}
+\end{equation}
+med øvre fortegn for (a), $\varphi \le \pi/2 - \omega - \theta$, og nedre
+for (b), i hele gyldighetsområdet.
+\begin{itemize}
+  \item $\theta$ inngår ikke.  Skråningen gjør viften smalere, men
+        radien er bestemt av sone~I alene.
+  \item For glatt rør er $L = R\varphi$, like langt som kontaktbuen fra
+        rørbunnen til E.
+  \item Ruhet gjør sonen mindre i (a) og større i (b).  For $r = 1$ i (a) er
+        $\kappa = 0$: $\beta$-linjene går radielt ut fra røret, sone~I--III
+        krymper til punktet E ($L = 0$), og bruddet går langs grenseflaten.
+\end{itemize}
+
+\subsection*{Med parallellsone, (a), $\varphi > t_0 = \pi/2 - \omega - \theta$}
+
+$\beta$-linjene fra den ytre buen er parallelle med dem i sone~III, og jorda
+mellom den ytre buen og overflaten er i samme jevne tilstand som sone~III.
+Den ytre $\alpha$-linja møter $\beta$-linja fra $t_0$ etter lengden
+$R\,t_0\sin\kappa$ og går derfra rett opp til overflaten, med $45^\circ$ mot
+den.  Målt fra E langs overflaten blir
+\begin{equation}
+  \frac{L}{R} = t_0\sqrt{1 - r} + \sqrt{1 + r} - \cos(\varphi + \theta) - \sin(\varphi + \theta) .
+  \label{eq:Lpar}
+\end{equation}
+Ved $\varphi = t_0$ gir \eqref{eq:Lpar} det samme som \eqref{eq:L}.  Her
+øker $L$ med $\theta$, fordi parallellsonen begynner tidligere.
+
+\subsection*{Horisontal avstand}
+
+F ligger $L\cos\theta$ horisontalt fra E, $R\sin\varphi + L\cos\theta$ fra
+loddlinja gjennom rørsenteret, og $L\sin\theta$ under kontaktnivået.
+
+\begin{figure}[htb]
+  \centering
+  \includegraphics[width=\textwidth]{pipe_extent.png}
+  \caption{(a) Nettet fra figur~\ref{fig:problem}a ($P/R = 0{,}4$,
+    $r = 0{,}3$, $\theta = 15^\circ$).  Den tykke blå linja er den ytre
+    $\alpha$-linja beregnet med formlene over, tegnet oppå nettet fra koden.
+    Sone~III (gul) går fra kontaktkanten E til F.  (b) $L/R$ fra
+    \eqref{eq:L}--\eqref{eq:Lpar} ved $\theta = 15^\circ$.  For $r = 0$
+    faller (a) og (b) sammen, og kurven slutter ved gyldighetsgrensen
+    $P/R = 1 - \sin\theta$.  Punktene viser hvor parallellsonen begynner i
+    (a).  Figuren lages av \texttt{plot\_pipe\_extent.py}.}
+  \label{fig:extent}
+\end{figure}
+
+% ----------------------------------------------------------------------
 \section{Merknader}
 % ----------------------------------------------------------------------
 
@@ -244,6 +324,14 @@ koden:
 Avviket er under $10^{-8}\,cR$ for $P/R = 0{,}02$--$1$, $r = 0$--$1$ og
 $\theta = 0$--$30^\circ$ innenfor gyldighetsområdet.
 
+$L$ er sammenlignet med lengden \texttt{L} av sone~III i
+\texttt{OneSidedDiskSolver}.  Avviket minker med kvadratet av antall noder
+på buen, fra $5\cdot10^{-4}R$ med \texttt{n\_disk=30} til $2\cdot10^{-6}R$
+med \texttt{n\_disk=480}, for $P/R = 0{,}04$--$1$, $r = 0$--$1$ og
+$\theta = 0$--$30^\circ$.  Unntaket er $r = 1$ i (a) uten parallellsone, der
+sone~I ikke har noen utstrekning og koden beholder en plassholder for
+størrelsen på sone~II og III.
+
 Sammenhengen med koden:
 \begin{itemize}
   \item $P = pD$, der \texttt{p} er nedtrykkingsforholdet i
@@ -256,32 +344,32 @@ Sammenhengen med koden:
 
 \begin{table}[h]
   \centering
-  \caption{Kontrollverdier.  $^*$: med parallellsone i (a).
-    --: utenfor gyldighetsområdet.}
+  \caption{Kontrollverdier.  $L_a$ og $L_b$ er $L$ i (a) og (b).
+    $^*$: med parallellsone i (a).  --: utenfor gyldighetsområdet.}
   \label{tab:values}
-  \begin{tabular}{ccc ccc}
+  \begin{tabular}{ccc ccc cc}
     \toprule
-    $P/R$ & $r$ & $\theta$ & $H/(cR)$ & $V/(cR)$ & $Q/(cR)$ \\
+    $P/R$ & $r$ & $\theta$ & $H/(cR)$ & $V/(cR)$ & $Q/(cR)$ & $L_a/R$ & $L_b/R$ \\
     \midrule
-    0{,}2 & 0{,}0 & $0^\circ$ & 0{,}858 & 2{,}713 & 5{,}426 \\
-    0{,}2 & 0{,}5 & $0^\circ$ & 1{,}026 & 2{,}218 & 6{,}093 \\
-    0{,}2 & 1{,}0 & $0^\circ$ & 0{,}944 & 0{,}970 & 6{,}510 \\
-    0{,}5 & 0{,}0 & $0^\circ$ & 1{,}886 & 3{,}639 & 7{,}278 \\
-    0{,}5 & 0{,}5 & $0^\circ$ & 1{,}990 & 2{,}819 & 8{,}453 \\
-    0{,}5 & 1{,}0 & $0^\circ$ & 1{,}571$^*$ & 1{,}000 & 9{,}267 \\
-    1{,}0 & 0{,}0 & $0^\circ$ & 3{,}142 & 4{,}000 & 8{,}000 \\
-    1{,}0 & 0{,}5 & $0^\circ$ & 3{,}070$^*$ & 2{,}914 & 9{,}779 \\
-    1{,}0 & 1{,}0 & $0^\circ$ & 2{,}571$^*$ & 1{,}000 & 11{,}142 \\
+    0{,}2 & 0{,}0 & $0^\circ$ & 0{,}858 & 2{,}713 & 5{,}426 & 0{,}644 & 0{,}644 \\
+    0{,}2 & 0{,}5 & $0^\circ$ & 1{,}026 & 2{,}218 & 6{,}093 & 0{,}455 & 0{,}788 \\
+    0{,}2 & 1{,}0 & $0^\circ$ & 0{,}944 & 0{,}970 & 6{,}510 & 0{,}000 & 0{,}910 \\
+    0{,}5 & 0{,}0 & $0^\circ$ & 1{,}886 & 3{,}639 & 7{,}278 & 1{,}047 & 1{,}047 \\
+    0{,}5 & 0{,}5 & $0^\circ$ & 1{,}990 & 2{,}819 & 8{,}453 & 0{,}740 & 1{,}283 \\
+    0{,}5 & 1{,}0 & $0^\circ$ & 1{,}571$^*$ & 1{,}000 & 9{,}267 & 0{,}048$^*$ & 1{,}481 \\
+    1{,}0 & 0{,}0 & $0^\circ$ & 3{,}142 & 4{,}000 & 8{,}000 & 1{,}571 & 1{,}571 \\
+    1{,}0 & 0{,}5 & $0^\circ$ & 3{,}070$^*$ & 2{,}914 & 9{,}779 & 1{,}150$^*$ & 1{,}924 \\
+    1{,}0 & 1{,}0 & $0^\circ$ & 2{,}571$^*$ & 1{,}000 & 11{,}142 & 0{,}414$^*$ & 2{,}221 \\
     \midrule
-    0{,}2 & 0{,}0 & $15^\circ$ & 0{,}753 & 2{,}399 & 4{,}797 \\
-    0{,}2 & 0{,}5 & $15^\circ$ & 0{,}922 & 1{,}904 & 5{,}465 \\
-    0{,}2 & 1{,}0 & $15^\circ$ & 0{,}854$^*$ & 0{,}680 & 5{,}882 \\
-    0{,}5 & 0{,}0 & $15^\circ$ & 1{,}624 & 3{,}186 & 6{,}371 \\
-    0{,}5 & 0{,}5 & $15^\circ$ & 1{,}728 & 2{,}366 & 7{,}546 \\
-    0{,}5 & 1{,}0 & $15^\circ$ & 1{,}547$^*$ & 0{,}866 & 8{,}360 \\
-    1{,}0 & 0{,}0 & $15^\circ$ & -- & -- & -- \\
-    1{,}0 & 0{,}5 & $15^\circ$ & 2{,}728$^*$ & 2{,}634 & 8{,}732 \\
-    1{,}0 & 1{,}0 & $15^\circ$ & 2{,}547$^*$ & 1{,}134 & 10{,}094 \\
+    0{,}2 & 0{,}0 & $15^\circ$ & 0{,}753 & 2{,}399 & 4{,}797 & 0{,}644 & 0{,}644 \\
+    0{,}2 & 0{,}5 & $15^\circ$ & 0{,}922 & 1{,}904 & 5{,}465 & 0{,}455 & 0{,}788 \\
+    0{,}2 & 1{,}0 & $15^\circ$ & 0{,}854$^*$ & 0{,}680 & 5{,}882 & 0{,}010$^*$ & 0{,}910 \\
+    0{,}5 & 0{,}0 & $15^\circ$ & 1{,}624 & 3{,}186 & 6{,}371 & 1{,}047 & 1{,}047 \\
+    0{,}5 & 0{,}5 & $15^\circ$ & 1{,}728 & 2{,}366 & 7{,}546 & 0{,}740 & 1{,}283 \\
+    0{,}5 & 1{,}0 & $15^\circ$ & 1{,}547$^*$ & 0{,}866 & 8{,}360 & 0{,}189$^*$ & 1{,}481 \\
+    1{,}0 & 0{,}0 & $15^\circ$ & -- & -- & -- & -- & -- \\
+    1{,}0 & 0{,}5 & $15^\circ$ & 2{,}728$^*$ & 2{,}634 & 8{,}732 & 1{,}258$^*$ & 1{,}924 \\
+    1{,}0 & 1{,}0 & $15^\circ$ & 2{,}547$^*$ & 1{,}134 & 10{,}094 & 0{,}707$^*$ & 2{,}221 \\
     \bottomrule
   \end{tabular}
 \end{table}
