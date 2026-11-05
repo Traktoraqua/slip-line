@@ -1,7 +1,8 @@
 % ======================================================================
 %  Closed-form collapse loads for a partly embedded pipe (Norwegian)
 %  Figures: plots/pipe_formulas.png (plot_pipe_formulas.py),
-%           plots/pipe_extent.png (plot_pipe_extent.py)
+%           plots/pipe_extent.png (plot_pipe_extent.py),
+%           plots/pipe_surface_velocity.png (plot_pipe_surface_velocity.py)
 % ======================================================================
 \documentclass[11pt,a4paper]{article}
 
@@ -333,7 +334,7 @@ altså
         $v_0\cos\varphi/\sqrt{1 + r}$, og størst ved F, $v_0/\sqrt{1 + r}$.
         Utenfor F er jorda i ro, så i (b) faller farten brått til null: den
         ytre $\alpha$-linja er et hastighetssprang med størrelsen
-        $v_0/\sin\kappa$.
+        $v_0/\sin\kappa$ (figur~\ref{fig:vs}).
   \item Volumet stemmer: $\int_0^L v_n\,ds = R\int_0^\varphi w\,dt$, det
         røret fortrenger.  Det er $v_0 P$ i (a) og $v_0 R\sin\varphi$ (halve
         kontaktbredden ganger $v_0$) i (b).
@@ -352,9 +353,11 @@ Strømrøret fra buelementet $R\,dt$ har bredden $R\sin\kappa(t)\,dt$ og
 møter overflaten under $45^\circ$, så $ds = \sqrt2\,R\sin\kappa(t)\,dt$.
 Nærmest E, for $0 \le s \le s_0$, er
 \begin{align}
-  v_n = v_t &= \frac{w(t)}{\sin(t + \theta) - \cos(t + \theta)} , \\
+  v_n = v_t &= \frac{w(t)}{\sin(t + \theta) - \cos(t + \theta)} ,
+  \label{eq:vpar} \\
   \frac{s}{R} &= \cos(t + \theta) + \sin(t + \theta)
                  - \cos(\varphi + \theta) - \sin(\varphi + \theta) ,
+  \label{eq:spar}
 \end{align}
 der $t$ går fra $\varphi$ ved E til $t_0$ ved
 $s_0/R = \sqrt{1 + r} - \cos(\varphi + \theta) - \sin(\varphi + \theta)$.
@@ -362,6 +365,21 @@ Lenger ut, for $s_0 \le s \le L$, gjelder \eqref{eq:vs} med
 $t = t_0\bigl(1 - (s - s_0)/(L - s_0)\bigr)$ og $L$ fra \eqref{eq:Lpar}.
 Ved $t_0$ er $\sin(t_0 + \theta) - \cos(t_0 + \theta) = \sqrt{1 - r}$, så
 farten er kontinuerlig.
+
+\begin{figure}[htb]
+  \centering
+  \includegraphics[width=\textwidth]{pipe_surface_velocity.png}
+  \caption{Hastigheten $v_n$ normalt på overflaten i sone~III, ved
+    $P/R = 0{,}4$ og $\theta = 15^\circ$.  Linjer: \eqref{eq:vs} og
+    \eqref{eq:vpar}--\eqref{eq:spar}.  Ringer:
+    \texttt{InclinedDiskVelocityField} med \texttt{n\_disk=60}.  Kurvene
+    slutter i F.  (a) Farten avtar til null ved F.  For $r = 0{,}9$ ligger
+    parallellsonen (lys rød) nærmest E.  (b) Farten er størst ved F og
+    faller brått til null der.  Arealet under kurvene er det samme i hvert
+    panel: $v_0 P$ i (a) og $v_0 R\sin\varphi$ i (b).  Figuren lages av
+    \texttt{plot\_pipe\_surface\_velocity.py}.}
+  \label{fig:vs}
+\end{figure}
 
 % ----------------------------------------------------------------------
 \section{Merknader}
