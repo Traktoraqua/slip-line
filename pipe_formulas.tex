@@ -185,40 +185,39 @@ $\theta = 30^\circ$), og bare \eqref{eq:H}--\eqref{eq:V} er i bruk.  For ru
 rør gjelder formlene alltid når $\theta \le \omega$, ellers for
 $P/R \le 1 - \sin(\theta - \omega)$.
 
-\subsection*{Kontakt fra $\alpha$ til $\varphi$}
+\subsection*{Kontakt fra $\lambda$ til $\varphi$}
 
 \begin{figure}[htb]
   \centering
   \includegraphics[width=\textwidth]{pipe_contact.png}
-  \caption{Sideveis skyv med kontakt fra $\alpha$ til $\varphi$, ved
-    $P/R = 0{,}5$, $r = 0{,}3$ og $\theta = 15^\circ$.  $\alpha$ og
+  \caption{Sideveis skyv med kontakt fra $\lambda$ til $\varphi$, ved
+    $P/R = 0{,}5$, $r = 0{,}3$ og $\theta = 15^\circ$.  $\lambda$ og
     $\varphi$ måles fra loddlinja gjennom rørbunnen og er positive mot
-    kontaktkanten E.  (a) $\alpha = -25^\circ$: kontakten går forbi
-    rørbunnen.  (b) $\alpha = 20^\circ$: kontakten slutter før rørbunnen,
+    kontaktkanten E.  (a) $\lambda = -25^\circ$: kontakten går forbi
+    rørbunnen.  (b) $\lambda = 20^\circ$: kontakten slutter før rørbunnen,
     med sone~I--III som i (a).  Kontaktbuen er tegnet med tykk rød strek, og
     nettet er fra \texttt{OneSidedDiskSolver} med
-    \texttt{phi\_start} $= \alpha$.  Den tykke blå linja er den ytre
+    \texttt{phi\_start} $= \lambda$.  Den tykke blå linja er den ytre
     $\alpha$-linja beregnet med formlene i avsnitt~\ref{sec:extent}.  Den
-    starter i $t = \alpha$ og møter overflaten i F, i avstanden $L$ fra E
-    \eqref{eq:Lalpha}.  Figuren lages av \texttt{plot\_pipe\_contact.py}.}
+    starter i $t = \lambda$ og møter overflaten i F, i avstanden $L$ fra E
+    \eqref{eq:Llambda}.  Figuren lages av \texttt{plot\_pipe\_contact.py}.}
   \label{fig:contact}
 \end{figure}
 
 Formlene over integrerer fra rørbunnen ($t = 0$) til kontaktkanten.  Beveger
 røret seg også nedover, går kontakten forbi rørbunnen og inn på baksiden.
 Løsner jorda tidligere, slutter kontakten før rørbunnen.  Kontaktbuen er da
-$\alpha \le t \le \varphi$, der $\alpha < 0$ ligger bak rørbunnen
-(figur~\ref{fig:contact}).  ($\alpha$ er her en vinkel og har ikke noe med
-$\alpha$-linjene å gjøre.)  Den ytre
-$\alpha$-linja starter i $t = \alpha$, og ellers er feltet det samme:
-$\sigma_n(t)$ i \eqref{eq:contact} avhenger bare av $t$, ikke av $\alpha$
+$\lambda \le t \le \varphi$, der $\lambda < 0$ ligger bak rørbunnen
+(figur~\ref{fig:contact}).  Den ytre
+$\alpha$-linja starter i $t = \lambda$, og ellers er feltet det samme:
+$\sigma_n(t)$ i \eqref{eq:contact} avhenger bare av $t$, ikke av $\lambda$
 eller $\varphi$.  Kreftene er derfor
 \begin{align}
-  H &= R\int_\alpha^{\varphi} \bigl(\sigma_n \sin t + \tau\cos t\bigr)\,dt
-     = H(\varphi) - H(\alpha) ,
-  \label{eq:HValpha}\\
-  V &= R\int_\alpha^{\varphi} \bigl(\sigma_n \cos t - \tau\sin t\bigr)\,dt
-     = V(\varphi) - V(\alpha) ,
+  H &= R\int_\lambda^{\varphi} \bigl(\sigma_n \sin t + \tau\cos t\bigr)\,dt
+     = H(\varphi) - H(\lambda) ,
+  \label{eq:HVlambda}\\
+  V &= R\int_\lambda^{\varphi} \bigl(\sigma_n \cos t - \tau\sin t\bigr)\,dt
+     = V(\varphi) - V(\lambda) ,
 \end{align}
 der $H(x)$ og $V(x)$ er formlene for kontakt fra 0 til $x$:
 \eqref{eq:H}--\eqref{eq:V}, eller \eqref{eq:Hpar}--\eqref{eq:Vpar} når
@@ -229,38 +228,38 @@ Utskrevet, med $A = 1 + \pi - 2\omega - 2\theta + \cos 2\omega$, slik at
 $\sigma_n = c\,(A - 2t)$ på den indre buen, blir det uten parallellsone,
 $\varphi \le t_0$,
 \begin{align}
-  \frac{H}{cR} &= A(\cos\alpha - \cos\varphi) + 2\varphi\cos\varphi - 2\alpha\cos\alpha
-                  - (2 - \sin 2\omega)(\sin\varphi - \sin\alpha) ,
-  \label{eq:Halpha}\\[4pt]
-  \frac{V}{cR} &= (A - 2\varphi)\sin\varphi - (A - 2\alpha)\sin\alpha
-                  + (2 - \sin 2\omega)(\cos\alpha - \cos\varphi) ,
-  \label{eq:Valpha}
+  \frac{H}{cR} &= A(\cos\lambda - \cos\varphi) + 2\varphi\cos\varphi - 2\lambda\cos\lambda
+                  - (2 - \sin 2\omega)(\sin\varphi - \sin\lambda) ,
+  \label{eq:Hlambda}\\[4pt]
+  \frac{V}{cR} &= (A - 2\varphi)\sin\varphi - (A - 2\lambda)\sin\lambda
+                  + (2 - \sin 2\omega)(\cos\lambda - \cos\varphi) ,
+  \label{eq:Vlambda}
 \end{align}
 og med parallellsone, $\varphi > t_0$,
 \begin{align}
-  \frac{H}{cR} &= (A - 2\alpha)\cos\alpha + (2 - \sin 2\omega)\sin\alpha \nonumber\\
+  \frac{H}{cR} &= (A - 2\lambda)\cos\lambda + (2 - \sin 2\omega)\sin\lambda \nonumber\\
                &\quad + 2(\sin\omega - \cos\omega)(\sin\theta + \cos\theta)
                   - 2\cos\theta\cos(\varphi+\theta) ,
-  \label{eq:Hparalpha}\\[4pt]
-  \frac{V}{cR} &= (2 - \sin 2\omega)\cos\alpha - (A - 2\alpha)\sin\alpha \nonumber\\
+  \label{eq:Hparlambda}\\[4pt]
+  \frac{V}{cR} &= (2 - \sin 2\omega)\cos\lambda - (A - 2\lambda)\sin\lambda \nonumber\\
                &\quad + 2(\cos\omega - \sin\omega)(\cos\theta - \sin\theta)
                   - 2\sin\theta\cos(\varphi+\theta) .
-  \label{eq:Vparalpha}
+  \label{eq:Vparlambda}
 \end{align}
-Med $\alpha = 0$ gir de \eqref{eq:H}--\eqref{eq:V} og
+Med $\lambda = 0$ gir de \eqref{eq:H}--\eqref{eq:V} og
 \eqref{eq:Hpar}--\eqref{eq:Vpar}.
 
-Formlene gjelder for $-\varphi \le \alpha < \min(\varphi, t_0)$ og, som før,
+Formlene gjelder for $-\varphi \le \lambda < \min(\varphi, t_0)$ og, som før,
 $\varphi \le \pi/2 + \omega - \theta$:
 \begin{itemize}
-  \item $\alpha \ge -\varphi$ fordi kontakten ikke kan gå over overflaten
+  \item $\lambda \ge -\varphi$ fordi kontakten ikke kan gå over overflaten
         bak røret, når den ligger på kontaktnivået;
-  \item $\alpha < t_0$ fordi kontakten må begynne før parallellsonen.  Ellers
+  \item $\lambda < t_0$ fordi kontakten må begynne før parallellsonen.  Ellers
         er det ingen vifte, og koden gir feilmelding.
 \end{itemize}
 
 Kontroll: et glatt rør med $\theta = 0$ og kontakt på begge sider,
-$\alpha = -\varphi$, gir
+$\lambda = -\varphi$, gir
 \begin{equation}
   V = 2(2 + \pi)\,cR\sin\varphi , \qquad
   H = -4cR\,(\sin\varphi - \varphi\cos\varphi) .
@@ -348,23 +347,23 @@ den.  Målt fra E langs overflaten blir
 Ved $\varphi = t_0$ gir \eqref{eq:Lpar} det samme som \eqref{eq:L}.  Her
 øker $L$ med $\theta$, fordi parallellsonen begynner tidligere.
 
-\subsection*{Kontakt fra $\alpha$ til $\varphi$, (a)}
+\subsection*{Kontakt fra $\lambda$ til $\varphi$, (a)}
 
-Den ytre $\alpha$-linja starter i $t = \alpha$ i stedet for i rørbunnen.
-Argumentet over er det samme, men med buen fra $\alpha$: $\beta$-linja fra E
-har lengden $\ell = R(\varphi - \alpha)\sin\kappa$, og
+Den ytre $\alpha$-linja starter i $t = \lambda$ i stedet for i rørbunnen.
+Argumentet over er det samme, men med buen fra $\lambda$: $\beta$-linja fra E
+har lengden $\ell = R(\varphi - \lambda)\sin\kappa$, og
 \begin{align}
-  \frac{L}{R} &= (\varphi - \alpha)\sqrt{1 - r} ,
+  \frac{L}{R} &= (\varphi - \lambda)\sqrt{1 - r} ,
   && \varphi \le t_0 ,
-  \label{eq:Lalpha}\\[4pt]
-  \frac{L}{R} &= (t_0 - \alpha)\sqrt{1 - r} + \sqrt{1 + r}
+  \label{eq:Llambda}\\[4pt]
+  \frac{L}{R} &= (t_0 - \lambda)\sqrt{1 - r} + \sqrt{1 + r}
                  - \cos(\varphi + \theta) - \sin(\varphi + \theta) ,
   && \varphi > t_0 .
-  \label{eq:Lparalpha}
+  \label{eq:Lparlambda}
 \end{align}
-Parallellsonen er den samme; bare den indre delen av buen, fra $\alpha$ til
+Parallellsonen er den samme; bare den indre delen av buen, fra $\lambda$ til
 $t_0$, endres.  For glatt rør er $L$ fortsatt like lang som kontaktbuen,
-$R(\varphi - \alpha)$.
+$R(\varphi - \lambda)$.
 
 \subsection*{Horisontal avstand}
 
@@ -470,37 +469,37 @@ $t = t_0\bigl(1 - (s - s_0)/(L - s_0)\bigr)$ og $L$ fra \eqref{eq:Lpar}.
 Ved $t_0$ er $\sin(t_0 + \theta) - \cos(t_0 + \theta) = \sqrt{1 - r}$, så
 farten er kontinuerlig.
 
-\subsection*{Kontakt fra $\alpha$ til $\varphi$, (a)}
+\subsection*{Kontakt fra $\lambda$ til $\varphi$, (a)}
 
-Med kontakt fra $\alpha$ svarer F til rørpunktet $t = \alpha$ i stedet for
+Med kontakt fra $\lambda$ svarer F til rørpunktet $t = \lambda$ i stedet for
 rørbunnen.  Uten parallellsone er
 \begin{equation}
   v_n(s) = v_t(s) = \frac{w(t)}{\sqrt{1 - r}} ,
-  \qquad t = \varphi - (\varphi - \alpha)\,\frac{s}{L} ,
+  \qquad t = \varphi - (\varphi - \lambda)\,\frac{s}{L} ,
   \qquad 0 \le s \le L ,
-  \label{eq:valpha}
+  \label{eq:vlambda}
 \end{equation}
-med $L$ fra \eqref{eq:Lalpha}.  Med parallellsone gjelder
+med $L$ fra \eqref{eq:Llambda}.  Med parallellsone gjelder
 \eqref{eq:vpar}--\eqref{eq:spar} uendret for $0 \le s \le s_0$.  Lenger ut
-gjelder \eqref{eq:valpha} med $t = t_0 - (t_0 - \alpha)(s - s_0)/(L - s_0)$
-og $L$ fra \eqref{eq:Lparalpha}.  Volumet er
-$\int_0^L v_n\,ds = R\int_\alpha^\varphi w\,dt$.
+gjelder \eqref{eq:vlambda} med $t = t_0 - (t_0 - \lambda)(s - s_0)/(L - s_0)$
+og $L$ fra \eqref{eq:Lparlambda}.  Volumet er
+$\int_0^L v_n\,ds = R\int_\lambda^\varphi w\,dt$.
 
-Kontakt bak rørbunnen ($\alpha < 0$) krever at røret også beveger seg
+Kontakt bak rørbunnen ($\lambda < 0$) krever at røret også beveger seg
 nedover.  Ved rent sideveis skyv er $w = v_0\sin t < 0$ for $t < 0$, og der
-flytter røret seg bort fra jorda.  Beveger røret seg med vinkelen $\beta$
+flytter røret seg bort fra jorda.  Beveger røret seg med vinkelen $\delta$
 under horisontalen, er
 \begin{equation}
-  w(t) = v_0 \sin(t + \beta) ,
+  w(t) = v_0 \sin(t + \delta) ,
 \end{equation}
-som gir (a) for $\beta = 0$ og (b) for $\beta = \pi/2$.  Da er $w \ge 0$ for
-$t \ge -\beta$, så kontakten krever $\alpha \ge -\beta$.
+som gir (a) for $\delta = 0$ og (b) for $\delta = \pi/2$.  Da er $w \ge 0$ for
+$t \ge -\delta$, så kontakten krever $\lambda \ge -\delta$.
 \begin{itemize}
-  \item Med $\alpha = -\beta$ løsner jorda akkurat i det bakre
+  \item Med $\lambda = -\delta$ løsner jorda akkurat i det bakre
         kontaktpunktet, og farten avtar til null ved F, som for
-        $\alpha = 0$ i (a).  \texttt{PipeLateral} bruker $\alpha = -\beta$
+        $\lambda = 0$ i (a).  \texttt{PipeLateral} bruker $\lambda = -\delta$
         når kontakten bak røret rekker så langt.
-  \item Med $\alpha > -\beta$ er farten $v_0\sin(\alpha + \beta)/\sqrt{1 - r}$
+  \item Med $\lambda > -\delta$ er farten $v_0\sin(\lambda + \delta)/\sqrt{1 - r}$
         ved F.  Den ytre $\alpha$-linja er da et hastighetssprang, som i (b).
 \end{itemize}
 
@@ -555,7 +554,7 @@ Formlene er sammenlignet med numerisk integrasjon av kontaktspenningene i
 koden:
 \begin{itemize}
   \item \texttt{OneSidedDiskSolver} med \texttt{phi\_start=0} (eller
-        \texttt{phi\_start} $= \alpha$ for kontakt fra $\alpha$),
+        \texttt{phi\_start} $= \lambda$ for kontakt fra $\lambda$),
         \texttt{omega} $= \pm\omega$ og \texttt{alpha} $= \theta$;
   \item for $\theta = 0$ også \texttt{forces\_on\_half\_disk()} og
         \texttt{collapse\_load\_Q()} i \texttt{DiskPrandtlSolver}
@@ -579,20 +578,22 @@ antall noder, fra $2\cdot10^{-2}v_0$ med \texttt{n\_disk=30} til
 $8\cdot10^{-5}v_0$ med \texttt{n\_disk=480}, for $P/R = 0{,}04$--$1$,
 $r = 0$--$0{,}9$ og $\theta = 0$--$30^\circ$, med og uten parallellsone.
 
-Kontakt fra $\alpha$ er sjekket på samme måte, for $\alpha$ fra $-60^\circ$
-til $45^\circ$ og $\alpha = -\varphi$, innenfor
-$-\varphi \le \alpha < \min(\varphi, t_0)$.  $H$ og $V$ avviker under
+Kontakt fra $\lambda$ er sjekket på samme måte, for $\lambda$ fra $-60^\circ$
+til $45^\circ$ og $\lambda = -\varphi$, innenfor
+$-\varphi \le \lambda < \min(\varphi, t_0)$.  $H$ og $V$ avviker under
 $3\cdot10^{-8}\,cR$.  For $L$ minker avviket fra $2\cdot10^{-2}R$ med
 \texttt{n\_disk=30} til $1\cdot10^{-5}R$ med \texttt{n\_disk=480}.  For
-overflatehastigheten, med $\beta = -\alpha$, $0$ og $\pi/2$, minker det fra
+overflatehastigheten, med $\delta = -\lambda$, $0$ og $\pi/2$, minker det fra
 $1\cdot10^{-1}v_0$ til $5\cdot10^{-4}v_0$.
 
 Sammenhengen med koden:
 \begin{itemize}
   \item $P = pD$, der \texttt{p} er nedtrykkingsforholdet i
         \texttt{DiskFoundationBoundary};
-  \item $\varphi$ er \texttt{theta\_max}, $\alpha$ er \texttt{phi\_start},
+  \item $\varphi$ er \texttt{theta\_max}, $\lambda$ er \texttt{phi\_start},
         og $\theta$ er \texttt{alpha} i \texttt{OneSidedDiskSolver};
+  \item $\delta$ er \texttt{beta} i \texttt{InclinedDiskVelocityField} og
+        \texttt{PipeLateral};
   \item $+\omega$ gjelder (a), som er standardretningen, og $-\omega$
         gjelder (b), med \texttt{vertical\_shear=True}.
 \end{itemize}

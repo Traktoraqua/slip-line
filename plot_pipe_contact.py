@@ -1,13 +1,13 @@
-"""The general lateral push in pipe_formulas.tex: contact from alpha to phi
+"""The general lateral push in pipe_formulas.tex: contact from lambda to phi
 (plots/pipe_contact.png).
 
-(a) alpha < 0: the contact goes past the invert onto the back of the pipe.
-(b) alpha > 0: the contact ends before the invert.
+(a) lambda < 0: the contact goes past the invert onto the back of the pipe.
+(b) lambda > 0: the contact ends before the invert.
 
-The nets are those of OneSidedDiskSolver(phi_start=alpha) with the interface
+The nets are those of OneSidedDiskSolver(phi_start=lambda) with the interface
 shear of a horizontal push.  The thick line is the outer alpha-line from the
-closed forms: it starts at t = alpha and ends at F, L = R(phi - alpha)sqrt(1 - r)
-from the contact edge E.
+closed forms: it starts at t = lambda and ends at F,
+L = R(phi - lambda)sqrt(1 - r) from the contact edge E.
 """
 
 from pathlib import Path
@@ -26,7 +26,7 @@ PLOTS = Path(__file__).parent / "plots"
 PLOTS.mkdir(exist_ok=True)
 
 D, P_OVER_D, ROUGHNESS, THETA = 1.0, 0.25, 0.3, np.radians(15.0)
-ALPHAS = (np.radians(-25.0), np.radians(20.0))
+LAMBDAS = (np.radians(-25.0), np.radians(20.0))
 GAP = 0.06  # radial gap between the pipe and the soil at t = -phi
 SOIL, PIPE, CONTACT, LOAD = "#f1e6cc", "#d9d9d9", "darkred", "darkgreen"
 ALPHA_COLOR, BETA_COLOR, OUTER = "royalblue", "tomato", "navy"
@@ -38,8 +38,8 @@ def on_pipe(s, t, gap=0.0):
     return (s.R + gap) * np.sin(t), -(s.y_c + (s.R + gap) * np.cos(t))
 
 
-def outer_alpha_line(s, a: float) -> np.ndarray:
-    """Closed form, screen coordinates: Region I from t = a, the fan about E,
+def outer_alpha_line(s, lam: float) -> np.ndarray:
+    """Closed form, screen coordinates: Region I from t = lam, the fan about E,
     then Region III to F (no parallel zone)."""
     R, phi, kappa = s.R, s.theta_max, 0.25 * np.pi - s.omega_signed
 
@@ -47,10 +47,10 @@ def outer_alpha_line(s, a: float) -> np.ndarray:
         return np.array([np.sin(b), np.cos(b)])  # (x, y down)
 
     pts = []
-    for t in np.linspace(a, phi, 80):
+    for t in np.linspace(lam, phi, 80):
         p = np.array([R * np.sin(t), s.y_c + R * np.cos(t)])
-        pts.append(p + R * (t - a) * np.sin(kappa) * direction(t - kappa))
-    E, ell = np.array([s.B_s, 0.0]), R * (phi - a) * np.sin(kappa)
+        pts.append(p + R * (t - lam) * np.sin(kappa) * direction(t - kappa))
+    E, ell = np.array([s.B_s, 0.0]), R * (phi - lam) * np.sin(kappa)
     for b in np.linspace(phi - kappa, 0.25 * np.pi - THETA, 40):
         pts.append(E + ell * direction(b))
     pts.append(E + np.sqrt(2.0) * ell * np.array([np.cos(THETA), np.sin(THETA)]))
@@ -82,10 +82,10 @@ def angle_arc(
     )
 
 
-def solve(a: float) -> OneSidedDiskSolver:
+def solve(lam: float) -> OneSidedDiskSolver:
     disk = DiskFoundationBoundary(cu=1.0, D=D, p=P_OVER_D, r=ROUGHNESS)
     s = OneSidedDiskSolver(
-        disk, a, 0.5 * np.arcsin(ROUGHNESS), alpha=THETA, n_fan=6, n_disk=12
+        disk, lam, 0.5 * np.arcsin(ROUGHNESS), alpha=THETA, n_fan=6, n_disk=12
     )
     s.solve()
     assert s.complete() and not s.use_parallel_zone
@@ -99,14 +99,14 @@ def net_extent(s) -> tuple[float, float]:
 
 def panel(ax, s, title: str, first: bool, x_l: float, x_r: float, y_bot: float):
     """One panel; the first one also gets the legend and the region labels."""
-    a, R, B, phi, yc = s.phi_start, s.R, s.B_s, s.theta_max, -s.y_c
+    lam, R, B, phi, yc = s.phi_start, s.R, s.B_s, s.theta_max, -s.y_c
 
-    # Soil: flat behind, a gap that closes at t = a, the contact, the slope.
-    t_gap = np.linspace(-phi - 0.3, a, 300)
-    gx, gy = on_pipe(s, t_gap, GAP * (a - t_gap) / (a + phi))
+    # Soil: flat behind, a gap that closes at t = lam, the contact, the slope.
+    t_gap = np.linspace(-phi - 0.3, lam, 300)
+    gx, gy = on_pipe(s, t_gap, GAP * (lam - t_gap) / (lam + phi))
     below = gy <= 0.0  # the part of the gap line under the flat surface
     t_gap, gx, gy = t_gap[below], gx[below], gy[below]
-    cx, cy = on_pipe(s, np.linspace(a, phi, 60))
+    cx, cy = on_pipe(s, np.linspace(lam, phi, 60))
     y_r = -(x_r - B) * np.tan(THETA)
     xs = np.r_[x_l, gx, cx, x_r, x_r, x_l]
     ys = np.r_[0.0, gy, cy, y_r, y_bot, y_bot]
@@ -131,23 +131,23 @@ def panel(ax, s, title: str, first: bool, x_l: float, x_r: float, y_bot: float):
                 zorder=3,
                 label=label if k == 0 else None,
             )
-    o = outer_alpha_line(s, a)
+    o = outer_alpha_line(s, lam)
     ax.plot(
         o[:, 0], o[:, 1], color=OUTER, lw=2.6, zorder=4, label=r"ytre $\alpha$-linje"
     )
     ax.add_patch(mpatches.Circle((0, yc), R, fc=PIPE, ec="black", lw=1.8, zorder=5))
-    ax.plot(*on_pipe(s, np.linspace(a, phi, 100)), color=CONTACT, lw=3.0, zorder=6)
+    ax.plot(*on_pipe(s, np.linspace(lam, phi, 100)), color=CONTACT, lw=3.0, zorder=6)
 
-    # Angles from the invert: phi to E, alpha to the start of the contact.
+    # Angles from the invert: phi to E, lambda to the start of the contact.
     ax.plot(0.0, yc, "k.", ms=5, zorder=7)
-    for t in (0.0, a, phi):
+    for t in (0.0, lam, phi):
         ax.plot(*np.array([[0.0, yc], on_pipe(s, t)]).T, "k--", lw=0.8, zorder=7)
-    if a < 0.0:
+    if lam < 0.0:
         angle_arc(ax, s, phi, 0.40 * R, r"$\varphi$", 0.56 * R)
-        angle_arc(ax, s, a, 0.40 * R, r"$\alpha$", 0.56 * R)
+        angle_arc(ax, s, lam, 0.40 * R, r"$\lambda$", 0.56 * R)
     else:
         angle_arc(ax, s, phi, 0.58 * R, r"$\varphi$", 0.72 * R, at=0.68)
-        angle_arc(ax, s, a, 0.36 * R, r"$\alpha$", 0.50 * R)
+        angle_arc(ax, s, lam, 0.36 * R, r"$\lambda$", 0.50 * R)
     ang = np.radians(140.0)
     ax.plot([0, R * np.cos(ang)], [yc, yc + R * np.sin(ang)], "k-", lw=1.0, zorder=7)
     ax.text(
@@ -223,7 +223,7 @@ def panel(ax, s, title: str, first: bool, x_l: float, x_r: float, y_bot: float):
     k = len(t_gap) // 3
     ax.annotate(
         "ingen kontakt",
-        xy=on_pipe(s, t_gap[k], 0.5 * GAP * (a - t_gap[k]) / (a + phi)),
+        xy=on_pipe(s, t_gap[k], 0.5 * GAP * (lam - t_gap[k]) / (lam + phi)),
         xytext=(x_l + 0.25, y_bot + 0.12),
         fontsize=FS - 3,
         color="0.25",
@@ -239,12 +239,12 @@ def panel(ax, s, title: str, first: bool, x_l: float, x_r: float, y_bot: float):
     ax.set_aspect("equal")
     ax.axis("off")
     print(
-        f"{title[:3]} L/R code {s.L / R:.4f}, formula {(phi - a) * np.sqrt(1 - ROUGHNESS):.4f}"
+        f"{title[:3]} L/R code {s.L / R:.4f}, formula {(phi - lam) * np.sqrt(1 - ROUGHNESS):.4f}"
     )
 
 
 # Same scale in both panels.
-nets = [solve(a) for a in ALPHAS]
+nets = [solve(lam) for lam in LAMBDAS]
 x_l = -nets[0].B_s - GAP - 0.55
 x_r = max(max(net_extent(s)[0], s.B_s + 0.5) for s in nets) + 0.14
 y_bot = -(max(net_extent(s)[1] for s in nets) + 0.08)
@@ -252,7 +252,10 @@ fig, axes = plt.subplots(1, 2, figsize=(13, 5.0))
 for ax, s, title in zip(
     axes,
     nets,
-    (r"(a) $\alpha < 0$: forbi rørbunnen", r"(b) $\alpha > 0$: slutter før rørbunnen"),
+    (
+        r"(a) $\lambda < 0$: forbi rørbunnen",
+        r"(b) $\lambda > 0$: slutter før rørbunnen",
+    ),
 ):
     panel(ax, s, title, ax is axes[0], x_l, x_r, y_bot)
 fig.tight_layout()
