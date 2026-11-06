@@ -126,6 +126,7 @@ begge halvdelene samme bidrag.
 
 % ----------------------------------------------------------------------
 \section{Sideveis skyv: $H$ og $V$}
+\label{sec:push}
 % ----------------------------------------------------------------------
 
 \subsection*{Uten parallellsone, $\varphi \le \pi/2 - \omega - \theta$}
@@ -386,6 +387,7 @@ loddlinja gjennom rørsenteret, og $L\sin\theta$ under kontaktnivået.
 
 % ----------------------------------------------------------------------
 \section{Hastigheten langs overflaten}
+\label{sec:velocity}
 % ----------------------------------------------------------------------
 
 Røret flyttes som et stivt legeme med farten $v_0$, sideveis i (a) og
@@ -519,6 +521,174 @@ $t \ge -\delta$, så kontakten krever $\lambda \ge -\delta$.
 \end{figure}
 
 % ----------------------------------------------------------------------
+\section{Sideveis forskyvning med fri vertikal bevegelse}
+\label{sec:lateral}
+% ----------------------------------------------------------------------
+
+I \texttt{PipeLateral} skyves røret sideveis i små steg, mens det kan bevege
+seg fritt vertikalt, så $V = W$ hele tiden.  Det er en øvre grense.  Røret
+beveger seg med farten $v_0$ i retningen $\delta$ under horisontalen, og
+arbeidsligningen gir
+\begin{equation}
+  H\cos\delta + W\sin\delta = D
+  \quad\Longrightarrow\quad
+  H = \frac{D - W\sin\delta}{\cos\delta} ,
+  \label{eq:Hub}
+\end{equation}
+der $D$ er dissipasjonen i mekanismen.  I hvert steg velges $\delta$ slik at
+$H$ blir minst.  Kontakten går fra $\lambda = -\delta$, der røret slipper
+jorda bak, til kontaktkanten $\varphi$.  Ligger kontaktpunktet bak røret
+lavere, $\varphi_L < \delta$, er $\lambda = -\varphi_L$; da skjærer røret seg
+ned i jorda bak, med et hastighetssprang langs den ytre $\alpha$-linja.
+
+Med jevn friksjon, $\omega = \tfrac12\arcsin r$ som i (a), kan $D$ skrives
+på lukket form.  Formlene nedenfor brukes i
+\texttt{PipeLateralClosedForm}, og \texttt{PipeLateral(uniform=True)} er
+samme modell på nettet.
+
+\subsection*{Hastighetsfeltet}
+
+Som i avsnitt~\ref{sec:velocity} er $v = 0$, og jorda strømmer langs hver
+$\alpha$-linje med konstant fart.  Linja fra rørpunktet $t'$ har farten
+\begin{equation}
+  u(t') = \frac{w(t')}{\sin\kappa(t')} , \qquad
+  w(t') = v_0\sin(t' + \delta) ,
+\end{equation}
+med $\kappa(t') = \kappa = \pi/4 - \omega$ på den indre buen og
+$\kappa(t') = t' + \theta - \pi/4$ i parallellsonen.  Den ytre
+$\alpha$-linja ($t' = \lambda$) grenser mot jord i ro.  Hoppet over den er
+$U = u(\lambda) = v_0\sin(\lambda + \delta)/\sin\kappa$, som er null når
+$\lambda = -\delta$.
+
+\subsection*{Dissipasjonen}
+
+$D = D_p + D_U + D_r$ er summen av plastisk skjær i sone~I--III, hoppet
+langs den ytre $\alpha$-linja og glidningen langs røret.
+
+\paragraph{Plastisk skjær.}  Arbeidet per areal er $c\,|\dot\gamma|$, og med
+$v = 0$ er $\dot\gamma = \partial u/\partial s_\beta + u\,\partial\psi/\partial
+s_\alpha$.  Lokalt er feltet en vifte om krumningssenteret til
+$\alpha$-linja, og stiv rotasjon om det gir ingen tøyning.  Med
+$t_e = \min(\varphi, t_0)$ blir bidragene:
+\begin{itemize}
+  \item Sone~I.  Punktet i avstanden $\rho = R(t - t')\sin\kappa$ langs den
+        rette $\beta$-linja fra $t$ ligger på $\alpha$-linja fra $t'$, og
+        $\alpha$-linja har krumningsradius $R\cos\kappa + \rho$ der.  Det
+        gir
+\begin{equation}
+  D_I = \frac{c R v_0}{\sin\kappa}
+        \int_\lambda^{t_e}\!\!\int_{t'}^{t_e}
+        \bigl|\cos(t' + \delta - \kappa) + (t - t')\sin\kappa\cos(t' + \delta)\bigr|
+        \,dt\,dt' .
+  \label{eq:DI}
+\end{equation}
+        Det indre integralet er lineært i $t$ og regnes eksakt; det ytre
+        regnes numerisk.  Uttrykket er positivt når $t' + \delta \le
+        \pi/2$.
+  \item Vifta, når $\varphi \le t_0$.  $\alpha$-linjene er sirkler om E med
+        radius $R(\varphi - t')\sin\kappa$.  Integranden $(\varphi -
+        t')\cos(t' + \delta) + \sin(t' + \delta)$ avtar mot $\sin(\varphi +
+        \delta) \ge 0$, så
+\begin{equation}
+  D_{II} = c R v_0\,\Delta\psi\,\Bigl[2\bigl(\cos(\lambda + \delta)
+           - \cos(\varphi + \delta)\bigr) - (\varphi - \lambda)\sin(\lambda + \delta)\Bigr] ,
+\end{equation}
+        med viftevinkelen $\Delta\psi = \pi/2 - \varphi - \omega - \theta$.
+  \item Sone~III, når $\varphi \le t_0$.  Her er $\dot\gamma = \partial
+        u/\partial s_\beta$, og $\alpha$-linja fra $t'$ er
+        $R(\varphi - t')\sin\kappa$ lang i sonen:
+\begin{equation}
+  D_{III} = c R v_0 \int_\lambda^\varphi (\varphi - t')\,\bigl|\cos(t' + \delta)\bigr|\,dt' ,
+\end{equation}
+        med stamfunksjonen $(\varphi - t')\sin(t' + \delta) - \cos(t' + \delta)$
+        på hver side av $t' = \pi/2 - \delta$.
+  \item Med parallellsone, $\varphi > t_0$, er det ingen vifte, og den jevne
+        sonen ligger foran hele buen.  $\alpha$-linjene fra den indre buen er
+        $R\bigl[\sqrt2(\sin\omega - \cos(\varphi + \theta)) + (t_0 -
+        t')\sin\kappa\bigr]$ lange der, og de fra den ytre buen
+        $\sqrt2\,R\bigl(\cos(t' + \theta) - \cos(\varphi + \theta)\bigr)$.
+        Med $x = t' + \theta - \pi/4$ blir
+\begin{align}
+  D_{III} &= c R v_0 \int_\lambda^{t_0} \bigl|\cos(t' + \delta)\bigr|
+             \Bigl[\frac{\sqrt2\bigl(\sin\omega - \cos(\varphi + \theta)\bigr)}{\sin\kappa}
+             + t_0 - t'\Bigr] dt'
+             \nonumber\\
+          &\quad + c R v_0 \,\Bigl|\sin\Bigl(\delta - \theta + \frac{\pi}{4}\Bigr)\Bigr|
+             \Bigl[-\frac{1}{\sin x} - \ln\tan\frac{x}{2}
+             + \sqrt2\cos(\varphi + \theta)\cot x\Bigr]_{\kappa}^{\varphi + \theta - \pi/4} .
+\end{align}
+\end{itemize}
+$D_p = D_I + D_{II} + D_{III}$.
+
+\paragraph{Hoppet.}  $D_U = c\,|U|\,L_\alpha$, der $L_\alpha$ er lengden av
+den ytre $\alpha$-linja:
+\begin{align}
+  L_\alpha &= R\Bigl[(t_e - \lambda)\cos\kappa + \tfrac12 (t_e - \lambda)^2\sin\kappa\Bigr]
+              + L_2 ,
+  \label{eq:Lout}\\
+  L_2 &= \begin{cases}
+      R(\varphi - \lambda)\sin\kappa\,(\Delta\psi + 1) , & \varphi \le t_0 , \\[2pt]
+      R\bigl[\sqrt2\bigl(\sin\omega - \cos(\varphi + \theta)\bigr) + (t_0 - \lambda)\sin\kappa\bigr] ,
+      & \varphi > t_0 .
+    \end{cases} \nonumber
+\end{align}
+Det første leddet er sone~I.  $L_2$ er vifta og sone~III, eller den rette
+linja opp til overflaten.
+
+\paragraph{Glidningen.}  Jorda glir langs røret, mot E, med farten
+\begin{equation}
+  g(t) = v_0\,\frac{\sin\bigl(t + \delta - \kappa(t)\bigr)}{\sin\kappa(t)}
+\end{equation}
+i forhold til røret, og
+\begin{align}
+  D_r = r c R \int_\lambda^\varphi |g|\,dt
+     &= \frac{r c R v_0}{\sin\kappa}\int_\lambda^{t_e} \bigl|\sin(t + \delta - \kappa)\bigr|\,dt
+        \nonumber\\
+     &\quad + r c R v_0 \Bigl|\sin\Bigl(\delta - \theta + \frac{\pi}{4}\Bigr)\Bigr|
+          \ln\frac{\tan\bigl(\tfrac12(\varphi + \theta - \pi/4)\bigr)}{\tan(\kappa/2)} ,
+\end{align}
+der det siste leddet bare er med når $\varphi > t_0$.  På den indre buen
+skifter $g$ fortegn i $t = \kappa - \delta$.  Under det punktet glir røret
+fram i forhold til jorda, og over det glir jorda opp forbi røret.  Friksjonen
+$+rc$ mot E passer altså bare med glidningen under $t = \kappa - \delta$;
+$D_r$ bruker $|g|$ uansett.
+
+\subsection*{Sammenhengen med kreftene}
+
+Når $\dot\gamma$ har samme fortegn overalt, gir arbeidsligningen for
+spenningsfeltet
+\begin{equation}
+  D = H_s\cos\delta + V_s\sin\delta + 2 r c R \int_\lambda^\varphi \max(g, 0)\,dt ,
+\end{equation}
+der $H_s$ og $V_s$ er kreftene fra \eqref{eq:HVlambda}.  Det gjelder uten
+parallellsone og med $\varphi + \delta \le \pi/2$.  I parallellsonen gjør
+hastighetsfeltet negativt arbeid mot spenningsfeltet, så der må $D_p$
+regnes med $|\dot\gamma|$.
+
+For glatt rør med $\lambda = -\delta$ gir minimum av \eqref{eq:Hub} nøyaktig
+$V_s = W$ og $H = H_s$.  Øvre grense og spenningsformlene i
+avsnitt~\ref{sec:push} gir da samme svar.  For ru rør gjelder det ikke,
+fordi glidningsleddet også endrer seg med $\delta$.
+
+\subsection*{Stegene}
+
+\texttt{PipeLateralClosedForm} gjør de samme stegene som
+\texttt{PipeLateral}:
+\begin{enumerate}
+  \item finner $\delta$ som gir minst $H$ etter \eqref{eq:Hub};
+  \item flytter røret $du$ sideveis og $du\tan\delta$ ned;
+  \item hever overflaten foran med $v_n/\cos\theta$ per breddeenhet ganger
+        veilengden $du/\cos\delta$, med $v_n$ fra \eqref{eq:vlambda} og
+        $w(t) = v_0\sin(t + \delta)$, og tilpasser $\theta$ på nytt.
+\end{enumerate}
+Formlene krever ikke $\lambda \ge -\varphi$.  Nettet i koden kutter sone~I der
+den kommer over kontaktnivået foran, så \texttt{PipeLateral} kan ikke bruke
+slike mekanismer.  Det skjer når kontakten foran forsvinner, for eksempel ved
+starten av et tilbakeskyv etter at røret har steget.  Bak røret står da
+bermen, og formelversjonen finner en mekanisme der røret sklir ned i
+grøfta.
+
+% ----------------------------------------------------------------------
 \section{Merknader}
 % ----------------------------------------------------------------------
 
@@ -585,6 +755,23 @@ $3\cdot10^{-8}\,cR$.  For $L$ minker avviket fra $2\cdot10^{-2}R$ med
 \texttt{n\_disk=30} til $1\cdot10^{-5}R$ med \texttt{n\_disk=480}.  For
 overflatehastigheten, med $\delta = -\lambda$, $0$ og $\pi/2$, minker det fra
 $1\cdot10^{-1}v_0$ til $5\cdot10^{-4}v_0$.
+
+Dissipasjonen i avsnitt~\ref{sec:lateral} er sammenlignet med
+\texttt{InclinedDiskVelocityField.dissipation()} på nettet fra
+\texttt{OneSidedDiskSolver} med jevn $\omega$, i 688 tilfeller:
+$P/R = 0{,}1$--$1$, $r = 0$--$0{,}9$, $\theta = -15^\circ$--$20^\circ$,
+$\delta = -15^\circ$--$75^\circ$ og $\lambda = -\delta$ (høyst $\varphi$ bak
+rørbunnen) eller $\lambda = -\varphi/2$, med hopp.  Med
+\texttt{n\_fan} $=$ \texttt{n\_disk} minker det største avviket i $D$ fra
+2\,\% med \texttt{n\_disk=30} til 0,2\,\% med \texttt{n\_disk=480}.  Det er
+størst med parallellsone og mye negativt arbeid, der nettet trenger mange
+noder i sone~III.  Hoppet, glidningen, $L$ og overflatehastigheten
+konvergerer omtrent med kvadratet av antall noder.  Ved
+\texttt{n\_disk=480} avviker hoppet og glidningen under $10^{-5}D$, $L$ under
+$10^{-5}R$ og hastigheten under $9\cdot10^{-4}v_0$.
+På samme tilstand gir \texttt{PipeLateralClosedForm} og
+\texttt{PipeLateral(uniform=True)} samme $H(\delta)$ innen omtrent 1\,\% ved
+\texttt{n\_disk=30}.
 
 Sammenhengen med koden:
 \begin{itemize}
