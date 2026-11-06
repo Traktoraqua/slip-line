@@ -1,6 +1,7 @@
 % ======================================================================
 %  Closed-form collapse loads for a partly embedded pipe (Norwegian)
 %  Figures: plots/pipe_formulas.png (plot_pipe_formulas.py),
+%           plots/pipe_contact.png (plot_pipe_contact.py),
 %           plots/pipe_extent.png (plot_pipe_extent.py),
 %           plots/pipe_surface_velocity.png (plot_pipe_surface_velocity.py)
 % ======================================================================
@@ -186,11 +187,29 @@ $P/R \le 1 - \sin(\theta - \omega)$.
 
 \subsection*{Kontakt fra $\alpha$ til $\varphi$}
 
+\begin{figure}[htb]
+  \centering
+  \includegraphics[width=\textwidth]{pipe_contact.png}
+  \caption{Sideveis skyv med kontakt fra $\alpha$ til $\varphi$, ved
+    $P/R = 0{,}5$, $r = 0{,}3$ og $\theta = 15^\circ$.  $\alpha$ og
+    $\varphi$ måles fra loddlinja gjennom rørbunnen og er positive mot
+    kontaktkanten E.  (a) $\alpha = -25^\circ$: kontakten går forbi
+    rørbunnen.  (b) $\alpha = 20^\circ$: kontakten slutter før rørbunnen,
+    med sone~I--III som i (a).  Kontaktbuen er tegnet med tykk rød strek, og
+    nettet er fra \texttt{OneSidedDiskSolver} med
+    \texttt{phi\_start} $= \alpha$.  Den tykke blå linja er den ytre
+    $\alpha$-linja beregnet med formlene i avsnitt~\ref{sec:extent}.  Den
+    starter i $t = \alpha$ og møter overflaten i F, i avstanden $L$ fra E
+    \eqref{eq:Lalpha}.  Figuren lages av \texttt{plot\_pipe\_contact.py}.}
+  \label{fig:contact}
+\end{figure}
+
 Formlene over integrerer fra rørbunnen ($t = 0$) til kontaktkanten.  Beveger
 røret seg også nedover, går kontakten forbi rørbunnen og inn på baksiden.
 Løsner jorda tidligere, slutter kontakten før rørbunnen.  Kontaktbuen er da
-$\alpha \le t \le \varphi$, der $\alpha < 0$ ligger bak rørbunnen.  ($\alpha$
-er her en vinkel og har ikke noe med $\alpha$-linjene å gjøre.)  Den ytre
+$\alpha \le t \le \varphi$, der $\alpha < 0$ ligger bak rørbunnen
+(figur~\ref{fig:contact}).  ($\alpha$ er her en vinkel og har ikke noe med
+$\alpha$-linjene å gjøre.)  Den ytre
 $\alpha$-linja starter i $t = \alpha$, og ellers er feltet det samme:
 $\sigma_n(t)$ i \eqref{eq:contact} avhenger bare av $t$, ikke av $\alpha$
 eller $\varphi$.  Kreftene er derfor
@@ -270,6 +289,7 @@ og $P/R = 0{,}5$ gir $Q/(cD) = 3{,}639$, som i manualen.
 
 % ----------------------------------------------------------------------
 \section{Hvor langt ut når sone~III?}
+\label{sec:extent}
 % ----------------------------------------------------------------------
 
 På røret er $\sigma - 2c\psi = c(1 - 2\theta)$ den samme overalt.  Alle
