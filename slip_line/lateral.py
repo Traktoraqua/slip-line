@@ -25,7 +25,8 @@ toward +x through the fan and passive wedge at the right edge), with a
 uniform net angle ω: ψ = π/2 − φ − ω.  ω only shapes the mechanism; the
 interface shear enters the dissipation as r·cu·|slip|.  With reversing=True
 the net instead carries the interface friction ±r·cu, reversing where the
-slip does (see PipeLateral).  The free surface in
+slip does (see PipeLateral); with uniform=True it carries +r·cu on the whole
+contact (ω = ½·asin r, as in pipe_formulas.tex).  The free surface in
 front is a straight line from the right contact point, falling away from the
 pipe at the angle α of a least-squares fit to the berm over the passive
 wedge's extent (α = 0 is the flat surface of DiskPrandtlSolver); σ₁ is
@@ -55,6 +56,10 @@ with the pipe centre at u; the surface elevation η is positive upward.
 A push back toward −x (PipeLateral.reversed) is computed in the mirror image
 x → −x, where it is again a push toward +x: the trench is then in front (its
 rising wall gives α < 0) and the berm behind.
+
+PipeLateralClosedForm does the same steps as PipeLateral(uniform=True) with
+the dissipation and the surface velocity in closed form (pipe_formulas.tex),
+without a net.
 """
 
 from __future__ import annotations
@@ -288,7 +293,9 @@ class PipeLateral:
     ω = ±½·asin(r).  The friction reverses at phi_switch, through a
     partly mobilised zone of constant ψ (OneSidedDiskSolver); phi_switch is
     placed where the slip of the mechanism's own velocity field is zero,
-    found by bisection for each β.  Only β is then searched.
+    found by bisection for each β.  Only β is then searched.  With
+    uniform=True the net carries +r·cu toward the edge on the whole contact
+    (ω = ½·asin r), whatever the slip; only β is searched there too.
     """
 
     def __init__(
@@ -302,11 +309,14 @@ class PipeLateral:
         n_fan: int = 18,
         n_disk: int = 30,
         reversing: bool = False,
+        uniform: bool = False,
     ):
+        if reversing and uniform:
+            raise ValueError("Choose reversing or uniform friction, not both.")
         self.D, self.R, self.cu, self.r, self.W, self.du = D, D / 2.0, cu, r, W, du
         self.x = x
         self.n_fan, self.n_disk = n_fan, n_disk
-        self.reversing = reversing
+        self.reversing, self.uniform = reversing, uniform
         self.omega_r = 0.5 * np.arcsin(r)
 
     @classmethod
@@ -343,7 +353,8 @@ class PipeLateral:
             self.du,
             self.n_fan,
             self.n_disk,
-            self.reversing,
+            reversing=self.reversing,
+            uniform=self.uniform,
         )
         start = LateralState(
             -state.u,
@@ -495,7 +506,7 @@ class PipeLateral:
         return min(OMEGA_MAX, 0.5 * np.pi - theta - state.alpha - 1e-6)
 
     def _best_omega(self, state, force, beta, omega0, span):
-        if self.reversing:
+        if self.reversing or self.uniform:
             return self.omega_r, force(beta, self.omega_r)
         lo = max(-OMEGA_MAX, omega0 - span)
         hi = min(self._omega_max(state), omega0 + span)
@@ -525,7 +536,7 @@ class PipeLateral:
             for beta in np.radians(np.arange(-20.0, 86.0, 5.0)):
                 omegas = (
                     [self.omega_r]
-                    if self.reversing
+                    if self.reversing or self.uniform
                     else np.linspace(-OMEGA_MAX, self._omega_max(state), 12)
                 )
                 for om in omegas:
@@ -639,3 +650,218 @@ def _golden(f, a: float, b: float, tol: float = 2e-4) -> float:
             d = a + g * (b - a)
             fd = f(d)
     return 0.5 * (a + b)
+
+
+# ----------------------------------------------------------------------
+# Closed forms (pipe_formulas.tex): the uniform net without a Geiringer net
+# ----------------------------------------------------------------------
+
+_GAUSS_X, _GAUSS_W = np.polynomial.legendre.leggauss(32)
+
+
+def _abs_integral(F, a: float, b: float, m: float) -> float:
+    """∫_a^b |f| dt for an f with antiderivative F that changes sign only at m."""
+    if a < m < b:
+        return abs(F(m) - F(a)) + abs(F(b) - F(m))
+    return abs(F(b) - F(a))
+
+
+@dataclass
+class ClosedFormNet:
+    """The one-sided net of OneSidedDiskSolver with a uniform net angle ω, in
+    closed form (no nodes): contact φ ∈ [phi_start, theta_max], free surface
+    falling away at alpha.  Region I has straight β-lines at κ = π/4 − ω to
+    the radius; beyond θ_0 = π/2 − ω − α the β-lines are parallel to those
+    under the surface (parallel zone, no fan)."""
+
+    R: float
+    cu: float
+    r: float  # interface roughness (enters the slip work)
+    theta_max: float
+    phi_start: float
+    omega: float
+    alpha: float
+    phi_switch: float | None = None  # never set: the friction does not reverse
+
+    def __post_init__(self):
+        self.kappa = 0.25 * np.pi - self.omega
+        self.theta_0 = 0.5 * np.pi - self.omega - self.alpha
+        if self.phi_start >= self.theta_max:
+            raise ValueError("No contact left.")
+        if self.phi_start >= self.theta_0:
+            raise ValueError("ω too large: no fan anywhere on the contact.")
+        if self.kappa <= 1e-9:
+            raise ValueError("κ = 0: Region I has no size.")
+        self.use_parallel_zone = self.theta_max > self.theta_0
+        self.B_s = self.R * np.sin(self.theta_max)
+
+    @property
+    def L(self) -> float:
+        """Length of Region III along the surface, from the contact edge."""
+        lam, phi, a, om = self.phi_start, self.theta_max, self.alpha, self.omega
+        k = np.sqrt(2.0) * np.sin(self.kappa)  # sqrt(1 - r) for ω = ½·asin r
+        if not self.use_parallel_zone:
+            return self.R * (phi - lam) * k
+        s0 = np.cos(om) + np.sin(om) - np.cos(phi + a) - np.sin(phi + a)
+        return self.R * ((self.theta_0 - lam) * k + s0)
+
+
+class ClosedFormLateralField:
+    """Velocity field of a ClosedFormNet for a pipe moving with speed v0 along
+    (cos β, sin β), in closed form.  v = 0 everywhere, and the soil flows
+    along each α-line with u = w(t)/sin κ(t), where w(t) = v0·sin(t + β) is
+    the pipe's normal velocity at the point t the line starts from.  Offers
+    what PipeLateral uses from InclinedDiskVelocityField: solver, U,
+    dissipation() and surface_velocity()."""
+
+    def __init__(self, net: ClosedFormNet, beta: float, v0: float = 1.0):
+        self.solver, self.beta, self.v0 = net, float(beta), float(v0)
+        self.U = v0 * np.sin(net.phi_start + beta) / np.sin(net.kappa)
+
+    def outer_alpha_length(self) -> float:
+        """Length of the outer α-line, from t = phi_start to F."""
+        n = self.solver
+        lam, phi, sk = n.phi_start, n.theta_max, np.sin(n.kappa)
+        t_e = min(phi, n.theta_0)
+        L = n.R * ((t_e - lam) * np.cos(n.kappa) + 0.5 * (t_e - lam) ** 2 * sk)
+        if not n.use_parallel_zone:  # fan (circle about E), then Region III
+            fan = 0.5 * np.pi - phi - n.omega - n.alpha
+            return L + n.R * (phi - lam) * sk * (fan + 1.0)
+        c1 = np.sqrt(2.0) * (np.sin(n.omega) - np.cos(phi + n.alpha))
+        return L + n.R * (c1 + (n.theta_0 - lam) * sk)
+
+    def dissipation(self) -> dict[str, float]:
+        """Dissipation rate per unit length (per unit pipe speed for v0 = 1):
+        plastic shear cu·∫|γ̇| dA in Regions I-III, the jump along the outer
+        α-line and the interface slip r·cu·∫|slip| ds."""
+        n, b = self.solver, self.beta
+        R, cu, om, a = n.R, n.cu, n.omega, n.alpha
+        lam, phi, t0, kap = n.phi_start, n.theta_max, n.theta_0, n.kappa
+        sk, t_e = np.sin(kap), min(phi, t0)
+        m = 0.5 * np.pi - b  # where cos(t + β) changes sign
+
+        # Region I: ∫∫ |cos(t'+β−κ) + (t−t')·sin κ·cos(t'+β)| dt dt' / sin κ
+        # over λ ≤ t' ≤ t ≤ t_e; the inner integral (linear in t) is exact.
+        tp = 0.5 * (t_e + lam) + 0.5 * (t_e - lam) * _GAUSS_X
+        c, s = np.cos(tp + b - kap), sk * np.cos(tp + b)
+        X = t_e - tp
+        x0 = np.divide(-c, s, out=np.full_like(c, np.inf), where=s != 0.0)
+        inside = (x0 > 0.0) & (x0 < X)
+        x0 = np.where(inside, x0, 0.0)
+        G0, GX = c * x0 + 0.5 * s * x0**2, c * X + 0.5 * s * X**2
+        F = np.where(inside, np.abs(G0) + np.abs(GX - G0), np.abs(GX))
+        plastic = 0.5 * (t_e - lam) * np.dot(_GAUSS_W, F) / sk
+
+        if not n.use_parallel_zone:
+            # Fan about E: (φ−t')cos(t'+β) + sin(t'+β) ≥ 0, so no |·| needed.
+            fan = 0.5 * np.pi - phi - om - a
+            plastic += fan * (
+                2.0 * (np.cos(lam + b) - np.cos(phi + b))
+                - (phi - lam) * np.sin(lam + b)
+            )
+            # Region III: ∫ (φ−t')·|cos(t'+β)| dt'.
+            plastic += _abs_integral(
+                lambda t: (phi - t) * np.sin(t + b) - np.cos(t + b), lam, phi, m
+            )
+        else:
+            # Uniform zone, α-lines from the inner arc: ∫ |cos(t'+β)|·ℓ(t')/sin κ.
+            c1 = np.sqrt(2.0) * (np.sin(om) - np.cos(phi + a))
+            plastic += c1 / sk * _abs_integral(lambda t: np.sin(t + b), lam, t0, m)
+            plastic += _abs_integral(
+                lambda t: (t0 - t) * np.sin(t + b) - np.cos(t + b), lam, t0, m
+            )
+            # ... and from the outer arc, x = t' + α − π/4 from κ.
+            x1 = phi + a - 0.25 * np.pi
+            cp = np.sqrt(2.0) * np.cos(phi + a)
+
+            def J(x):
+                return -1.0 / np.sin(x) - np.log(np.tan(0.5 * x)) + cp / np.tan(x)
+
+            plastic += abs(np.sin(b - a + 0.25 * np.pi)) * (J(x1) - J(kap))
+
+        # Interface: r·cu·R·∫ |sin(t+β−κ(t))/sin κ(t)| dt.
+        slip = _abs_integral(lambda t: -np.cos(t + b - kap), lam, t_e, kap - b) / sk
+        if n.use_parallel_zone:
+            x1 = phi + a - 0.25 * np.pi
+            slip += abs(np.sin(b - a + 0.25 * np.pi)) * np.log(
+                np.tan(0.5 * x1) / np.tan(0.5 * kap)
+            )
+        v0 = self.v0
+        out = {
+            "plastic": cu * R * v0 * plastic,
+            "jump": cu * abs(self.U) * self.outer_alpha_length(),
+            "interface": n.r * cu * R * v0 * slip,
+        }
+        out["total"] = out["plastic"] + out["jump"] + out["interface"]
+        return out
+
+    def surface_velocity(self, n: int = 400):
+        """Local x, horizontal and upward velocity of the free surface over
+        Region III, from the contact edge E to F."""
+        net, b, v0 = self.solver, self.beta, self.v0
+        lam, phi, t0, a = net.phi_start, net.theta_max, net.theta_0, net.alpha
+        k = np.sqrt(2.0) * np.sin(net.kappa)
+        if not net.use_parallel_zone:
+            t = np.linspace(phi, lam, n)
+            s, vn = net.R * (phi - t) * k, v0 * np.sin(t + b) / k
+        else:
+            to = np.linspace(phi, t0, n // 2)
+            so = net.R * (
+                np.cos(to + a) + np.sin(to + a) - np.cos(phi + a) - np.sin(phi + a)
+            )
+            ti = np.linspace(t0, lam, n - n // 2)[1:]
+            s = np.concatenate((so, so[-1] + net.R * (t0 - ti) * k))
+            vn = v0 * np.concatenate(
+                (
+                    np.sin(to + b) / (np.sin(to + a) - np.cos(to + a)),
+                    np.sin(ti + b) / k,
+                )
+            )
+        x = net.B_s + s * np.cos(a)
+        return x, vn * (np.cos(a) + np.sin(a)), vn * (np.cos(a) - np.sin(a))
+
+
+class PipeLateralClosedForm(PipeLateral):
+    """PipeLateral(uniform=True) with the net replaced by the closed forms of
+    pipe_formulas.tex: field() returns a ClosedFormLateralField, and the
+    mechanism search, the steps and the push back are those of PipeLateral.
+    Same results up to the net's discretisation, without a net.  n_fan and
+    n_disk are not used."""
+
+    def __init__(
+        self,
+        D: float,
+        cu: float,
+        r: float,
+        W: float,
+        x: np.ndarray,
+        du: float = 1e-3,
+        n_fan: int = 18,
+        n_disk: int = 30,
+        reversing: bool = False,
+        uniform: bool = True,
+    ):
+        if reversing or not uniform:
+            raise ValueError("PipeLateralClosedForm has uniform friction only.")
+        if not 0.0 <= r < 1.0:
+            raise ValueError("Roughness must be in [0, 1) (r = 1 gives κ = 0).")
+        super().__init__(D, cu, r, W, x, du, n_fan, n_disk, uniform=True)
+
+    def field(
+        self,
+        state: LateralState,
+        beta: float,
+        omega: float,
+        phi_switch: float | None = None,
+    ) -> ClosedFormLateralField:
+        """Closed-form field for direction β and net angle ω."""
+        net = ClosedFormNet(
+            self.R,
+            self.cu,
+            self.r,
+            float(np.arccos(1.0 - state.d(self.R) / self.R)),
+            self._phi_start(state, beta),
+            omega,
+            state.alpha,
+        )
+        return ClosedFormLateralField(net, beta)

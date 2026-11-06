@@ -9,10 +9,10 @@ Slip-line (method of characteristics) analysis of the bearing capacity of founda
 - Partly-penetrated circular disk, for both Tresca and Mohr-Coulomb soil; the rough Tresca disk takes the interface shear of either a horizontal push or vertical penetration (`vertical_shear=True`)
 - Velocity fields (Geiringer) on the Tresca nets, with checks of the plastic work and the virtual-work balance
 - A pipe sinking into the soil under its own weight, with heave of the surface beside it
-- A lateral push of the pipe while it is free to move vertically (upper bound), followed by a push back
+- A lateral push of the pipe while it is free to move vertically (upper bound), followed by a push back; with uniform interface friction it also runs on closed-form formulas, without a net
 - Plots of the slip-line fields
 
-The theory and API are described in `manual.tex` (LaTeX). `pipe_formulas.tex` (in Norwegian) gives closed-form horizontal and vertical collapse loads for a partly embedded pipe with a sloping surface beside it, how far the plastic zone reaches along the surface, and how fast the surface moves there.
+The theory and API are described in `manual.tex` (LaTeX). `pipe_formulas.tex` (in Norwegian) gives closed-form horizontal and vertical collapse loads for a partly embedded pipe with a sloping surface beside it, how far the plastic zone reaches along the surface, how fast the surface moves there, and the dissipation of the lateral mechanism.
 
 ## Setup
 
@@ -33,6 +33,7 @@ uv run run_penetration.py               # pipe sinking under its own weight, smo
 uv run run_penetration_closed_form.py   # the same with closed-form formulas, ~10x faster
 uv run animate_penetration.py           # animation: pipe pushed to P/R = 0.5, with V against P
 uv run run_lateral.py                   # sink, push 0.2 m sideways, then 40 mm back
+uv run run_lateral_closed_form.py       # the same with closed forms and uniform friction, ~1 s
 ```
 
 `run_lateral.py` has a `REVERSING` switch at the top: `True` (default) makes the net carry the interface friction, reversing where the slip along the pipe changes sign; `False` lets the net angle be free.
@@ -63,7 +64,7 @@ print(solver.solve())  # ≈ π + 2
 - `slip_line/solver.py` – the solvers
 - `slip_line/velocity.py` – velocity fields, plastic work and energy balance
 - `slip_line/penetration.py` – pipe sinking under its own weight (`PipePenetration`)
-- `slip_line/lateral.py` – lateral push of the pipe (`PipeLateral`)
+- `slip_line/lateral.py` – lateral push of the pipe (`PipeLateral`, `PipeLateralClosedForm`)
 - `slip_line/plot.py` – plotting
 
 Conventions: y points downward (depth), compression is positive.

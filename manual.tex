@@ -119,7 +119,8 @@ Three further modules build on the Tresca nets:
         (\texttt{PipePenetration}, Sect.~\ref{sec:penetration}).
   \item[\texttt{lateral.py}] A lateral push of the embedded pipe while
         it is free to move vertically, as an upper-bound mechanism,
-        and a push back (\texttt{PipeLateral}, Sect.~\ref{sec:lateral}).
+        and a push back (\texttt{PipeLateral}, Sect.~\ref{sec:lateral});
+        \texttt{PipeLateralClosedForm} does it with closed forms.
 \end{description}
 
 \subsection{Sign conventions and coordinate system}
@@ -891,7 +892,7 @@ later steps search locally around the previous mechanism
 (golden-section search).  If the search ends on an invalid
 (incomplete) net, the best valid mechanism it has seen is used.
 
-\subsection{Net angle: free or reversing friction}
+\subsection{Net angle: free, reversing or uniform friction}
 
 \textbf{Free net angle} (default).  $\omega$ is chosen with $\beta$ to
 minimise $H$.  The net then need not match $r$: it is nearly smooth
@@ -918,7 +919,15 @@ does not reverse); only $\beta$ is then searched.  The result is
 self-consistent: the friction nowhere acts against the slip, and $H$
 is lower than with the free net.
 
-In both modes $\omega$ is reduced on the outer arc where the fan would
+\textbf{Uniform friction} (\texttt{uniform=True}).  The net carries
+$\tau = +r c_u$ toward the edge on the whole contact,
+$\omega = \omega_r$, as in case (a) of \texttt{pipe\_formulas.tex}.
+Only $\beta$ is searched.  The friction then acts against the slip only
+below the point where the slip changes sign; the slip work
+$r c_u\int|\text{slip}|\,ds$ is counted in full anyway.  This is the
+model of \texttt{PipeLateralClosedForm} (Sect.~\ref{sec:lateral_cf}).
+
+In all modes $\omega$ is reduced on the outer arc where the fan would
 be negative ($\pi/2 - \varphi - \omega < \alpha$), so that
 $\psi = \alpha$ there (parallel zone, as in \texttt{DiskPrandtlSolver}).
 
@@ -960,6 +969,33 @@ with reversing friction ($\beta$ jumps by $\sim1^\circ$ when
 $\varphi_s$ moves between mesh nodes) and by less than 0.1\,\% with the
 free net.
 
+\subsection{Closed form}
+\label{sec:lateral_cf}
+
+\texttt{PipeLateralClosedForm} is \texttt{PipeLateral(uniform=True)}
+with the net replaced by closed forms (\texttt{pipe\_formulas.tex},
+chapter~7).  With $v = 0$ and $u = w/\sin\kappa$ along each
+$\alpha$-line, where $w = v_0\sin(t + \beta)$ is the pipe's normal
+velocity at the point $t$ the line starts from, the dissipation is
+written region by region: the plastic shear in Regions I--III
+(one numerical integral in Region~I, the rest exact), the jump along
+the outer $\alpha$-line and the interface slip.  The surface velocity
+over Region~III and the length of Region~III also come from formulas.
+Only \texttt{field()} is overridden; the mechanism search, the steps and
+the push back are those of \texttt{PipeLateral}.  It takes the same
+arguments (\texttt{n\_fan} and \texttt{n\_disk} are not used) and
+needs $r < 1$.
+
+On the same state the two give the same $H(\beta)$ to within the net's
+discretisation (about 1\,\% at \texttt{n\_disk=30}), and the
+dissipation converges to the closed form as the net is refined.  The
+whole of \texttt{run\_lateral\_closed\_form.py} takes about 1\,s,
+against 27\,s for \texttt{PipeLateral(uniform=True)}.  The closed
+forms also accept a contact that reaches above the contact level in
+front ($\varphi_\text{start} < -\theta_\text{max}$), which the net cuts off
+as incomplete.  This happens at the start of a push back when the pipe
+has risen at the end of the push and lost the contact behind it.
+
 \subsection{API}
 
 \begin{lstlisting}
@@ -983,7 +1019,7 @@ print(s.u, s.w, s.d(lat.R), m.beta, m.H)      # u = -s.u, H = -m.H for states3
 \end{lstlisting}
 
 \texttt{PipeLateral(D, cu, r, W, x, du=1e-3, n\_fan=18, n\_disk=30,
-reversing=False)}; \texttt{after\_penetration(sim, state, x\_min=-1.5,
+reversing=False, uniform=False)}; \texttt{after\_penetration(sim, state, x\_min=-1.5,
 x\_max=2.5, **kw)} builds the model and start state (the right-half
 heave mirrored to the left) on a surface grid from \texttt{x\_min} to
 \texttt{x\_max}.
@@ -1041,6 +1077,15 @@ With the free net (\texttt{REVERSING = False} in
 $u = 200$\,mm $w = 130.7$\,mm, $\beta = 18^\circ$, $H = 1.00$\,kN/m;
 in the push back $H = 0.25$\,kN/m at the turn and $-0.66$\,kN/m at
 $u = 160$\,mm, with $w = 148.7$\,mm.
+
+With uniform friction (\texttt{run\_lateral\_closed\_form.py}) the pipe
+hardly sinks: $\beta$ starts at $13.8^\circ$ with $H = 0.36$\,kN/m and
+falls steadily, and at $u = 200$\,mm $w = 65.3$\,mm,
+$\beta = -0.7^\circ$ and $H = 1.01$\,kN/m.  Near the end the pipe rises
+and the contact behind it shrinks to the invert; $\beta$ then alternates
+between about $0^\circ$ and $9^\circ$ from step to step.  The push back
+starts with a holding force $H = 1.12$\,kN/m, which passes zero after
+about 16\,mm; at $u = 160$\,mm $w = 79.6$\,mm and $H = -0.46$\,kN/m.
 
 % ====================================================================
 \section{Plotting}
@@ -1418,6 +1463,7 @@ File & Contents \\
 \texttt{run\_penetration\_closed\_form.py} & The same with the closed forms (faster) \\
 \texttt{animate\_penetration.py}        & Animation: pipe pushed to $P/R = 0.5$ \\
 \texttt{run\_lateral.py}               & Pipe sinking, lateral push and push back \\
+\texttt{run\_lateral\_closed\_form.py}   & The same, closed forms (uniform friction) \\
 \texttt{plot\_velocity\_strip.py}       & Velocity field figure — smooth strip \\
 \texttt{plot\_velocity\_disk.py}        & Velocity field figure — disk \\
 \texttt{plot\_mc\_gravity.py}           & Demo script — gravity parametric study \\
@@ -1473,6 +1519,13 @@ File & Contents \\
   \item[\texttt{No valid mechanism} in \texttt{PipeLateral}:]
         No direction $\beta$ in the scan gave a complete net at this
         geometry, so the one-sided net cannot model it.
+
+  \item[$\beta$ alternates between two values with uniform friction:]
+        When the pipe rises, the contact behind it can shrink to the
+        invert.  The trailing contact angle is then zero, a diving
+        mechanism with a velocity jump becomes cheaper, the pipe dives
+        a little, and the contact behind returns.  This comes from the
+        contact rule of \texttt{PipeLateral}, not from the closed forms.
 
   \item[$\beta$ jumps from step to step with reversing friction:]
         The switch $\varphi_s$ moves between nodes of the contact
