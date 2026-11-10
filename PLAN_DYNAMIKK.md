@@ -7,7 +7,7 @@ Status 10.11.2026. Planen innfører én ting av gangen. Hvert steg er ferdig fø
 | Steg | Innhold | Status |
 |---|---|---|
 | 0 | Plan, notasjon og valg | ferdig |
-| 1 | Flyteflaten (H–V) for én tilstand | ikke startet |
+| 1 | Flyteflaten (H–V) for én tilstand | ferdig, venter på godkjenning |
 | 2 | Bevegelseslikningen på fast flyteflate | ikke startet |
 | 3 | Geometrien følger bevegelsen (forover) | ikke startet |
 | 4 | Fram og tilbake | ikke startet |
@@ -65,7 +65,7 @@ Dokumentasjonen kommer først og er en del av steget, ikke noe som gjøres til s
 - **Frihetsgrader og materialmodell.** To frihetsgrader (u, w). Røret er et stivt legeme, og jorda er stiv-plastisk: ingen elastisk fase og ingen demping utover det plastiske arbeidet.
 - **Jordmotstand.** Den kommer fra flyteflaten til den sideveis mekanismen (øvre grense), med normalitet: bevegelsen står vinkelrett på flyteflaten. Der flyteflaten har et hjørne, kan røret bevege seg i alle retninger mellom normalene på hver side.
 - **Q fra steg 1 brukes ikke.** Når røret har flyttet seg sideveis, åpnes kontakten bak røret. Ved V = W gir Q dessuten samme svar som flyteflaten uten Q.
-  - Svakhet: flyteflaten er for sterk når røret beveger seg bratt nedover (4,29 kN/m rett ned mot 2,80 kN/m fra Q ved start). Dette har bare betydning når røret lander etter å ha lettet.
+  - Svakhet: flyteflaten er for sterk når røret beveger seg bratt nedover. Ved start tåler den V = 3,27 kN/m ved H = 0, mot Q = 2,80 kN/m. Dette har bare betydning når røret lander etter å ha lettet.
 - **Friksjonsmodell.** Lukket form med jevn friksjon (`PipeLateralClosedForm`) kommer først, fordi den er rask: én flyteflate med 720 retninger tar ~20 ms. Friksjon som snur kan komme senere.
 - **Tidsintegrasjon.** Implisitt steg med projeksjon på flyteflaten, som «closest point projection» i plastisitetsteori.
   - Prøvekraften er F* = F_ytre + M·v/Δt.
@@ -96,6 +96,16 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
   - Manualen: underseksjon «Yield envelope», med øvre grense per retning, halvplan, normalitet, hjørner, og hvorfor Q ikke er med. API og eksempel.
   - Figur `plots/yield_envelope.png` fra `plot_yield_envelope.py`: flyteflaten ved start og etter 50 og 200 mm, så veksten og skjevheten synes.
   - `VIDERE_ARBEID.md`: merk 3.3 som løst.
+- **Resultat (10.11.2026):**
+  - `slip_line/envelope.py` med `YieldEnvelope`. I tillegg til det som er nevnt over har den `push_force(V)`, skyvet forover med styrt forskyvning, slik `mechanism()` regner, og `H_range`, `V_range`, `directions` og `active`.
+  - Kontrollene ligger i `tests/test_yield_envelope.py` (8 tester, 1 s). De er skrevet for pytest, men kjøres som skript til pytest er lagt inn.
+  - Manualen: ny seksjon 8 «Dynamic response of the pipe» med teori, resultater, API og eksempel. `README.md`, `CLAUDE.md` og `VIDERE_ARBEID.md` (3.3 løst, 3.1 og ny 1.11) er oppdatert.
+  - **Avvik fra planen:**
+    - Skyvet styrer forskyvningen, så røret får ikke gå bakover. Derfor er det `push_force(W)` som skal være lik `mechanism()`, ikke den største H på flyteflaten. De to er like så lenge halvplanene bakover ikke skjærer flyteflaten ved V = W.
+    - Med cᵤ = 5 kPa har røret løftet seg og mistet kontakten bak seg allerede etter ~8 mm, og fra 30 mm når flyteflaten ikke V = W. Figuren viser derfor cᵤ = 5 kPa ved 0, 4 og 10 mm, og kjøringen med cᵤ = 1 kPa ved 0, 50 og 200 mm. Kontrollen ved 50 mm, 200 mm og etter skyv tilbake bruker også cᵤ = 1 kPa.
+  - **Funn:**
+    - Med cᵤ = 5 kPa følger den kvasistatiske kjøringen et lokalt minimum fra 1,25 mm. H er der opptil 43 % for høy (`VIDERE_ARBEID.md` 1.11).
+    - Når røret mangler kontakt bak seg, blir flyteflaten ensidig: H ≥ 0, og ved H = 0 bærer den ingenting. Glipa bak røret er likevel bare brøkdeler av en millimeter.
 
 ## Steg 2 – Bevegelseslikningen på fast flyteflate
 
@@ -104,7 +114,7 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
   - `slip_line/dynamics.py` med projeksjonen og tidsstegene.
   - Lasten som funksjoner av tid, Fx(t) og F_L(t).
   - Tidsserier med t, u, w, u̇, ẇ, H, V og δ.
-- **Kontroll (pytest).** Dette er de første testene i repoet, se punkt 3.1 i `VIDERE_ARBEID.md`. Det krever `uv add --dev pytest`, som installeres lokalt i prosjektet og ikke globalt.
+- **Kontroll (pytest).** Det krever `uv add --dev pytest`, som installeres lokalt i prosjektet og ikke globalt. `tests/test_yield_envelope.py` fra steg 1 er allerede skrevet for pytest. pytest må bare lete i `tests/`, siden `test_*.py` i rotmappa er skript.
   - Last innenfor flyteflaten: røret står stille.
   - Glideblokk (Newmark): med en enkel flyteflate H ≤ μ·V og harmonisk Fx finnes forskyvningen per halvperiode på lukket form. Numerikken skal treffe innen 0,1 %.
   - Løft større enn W: røret letter uten jordkraft.
@@ -124,6 +134,8 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
   - At røret kan lette og lande igjen.
 - **Kontroll:**
   - Langsom last (T ≫ T_n) gir samme forløp som den kvasistatiske kraftstyrte kjøringen. Bruk samme lastform som Fx = 0,3·(1 − cos πt), strukket til f.eks. 100 s.
+    - Fra steg 1: den gamle kjøringen følger et lokalt minimum, og den lar ikke røret gå bakover. Sammenlign derfor med `push_force` på hele flyteflaten, og bruk cᵤ = 1 kPa, der den gamle kjøringen er riktig til ~190 mm.
+  - Røret mister kontakten bak seg når det løfter seg (fra ~8 mm med cᵤ = 5 kPa). Glipa er brøkdeler av en millimeter. Δs må være så liten at røret lander i glipa i stedet for å synke gjennom den, eller flyteflaten må lages på nytt når kontakten bak endres.
   - Den samme lasten over 1 s viser hvor mye dynamikken betyr, siden T_n ≈ 1 s.
   - Volumet bevares som i dag.
   - Energibalanse, og konvergens med Δt og Δs.

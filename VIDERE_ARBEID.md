@@ -1,6 +1,6 @@
 # Videre arbeid og ting som bør sjekkes
 
-Status 26.10.2026. Punktene i del 1 er ting i dagens kode eller dokumentasjon som gir feil eller usikre svar. Del 2 er forslag til verifisering mot litteratur. Del 3 er forslag til videreutvikling. Tall merket «sjekket» er kjørt med dagens kode.
+Status 10.11.2026. Punktene i del 1 er ting i dagens kode eller dokumentasjon som gir feil eller usikre svar. Del 2 er forslag til verifisering mot litteratur. Del 3 er forslag til videreutvikling. Tall merket «sjekket» er kjørt med dagens kode.
 
 Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i `PLAN_DYNAMIKK.md`.
 
@@ -73,6 +73,14 @@ Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i
 - **`PipeLateral`:** hele forløpet med finere nett (`n_disk`, `n_fan`). Bare V ved H = 0 er sjekket med `n_disk = 90`.
 - **Forslag:** Lag en liten konvergenstabell for hver og legg den i manualen.
 
+### 1.11 `mechanism()` følger et lokalt minimum (lett rør, cᵤ = 5 kPa)
+- **Hva:** Søket i hvert steg starter fra β i forrige steg og finner bare minimumet i nærheten. Flyteflaten (`YieldEnvelope`, steg 1 i `PLAN_DYNAMIKK.md`) viser at det ikke alltid er det laveste. Med D = 1 m, cᵤ = 5 kPa, r = 0,8 og W = 2,8 kN/m (jevn friksjon):
+  - Fra u = 1,25 mm er det billigst å løfte røret (δ ≈ −2° til −5°), men kjøringen fortsetter nedover til u = 8 mm. Der faller H fra 0,678 til 0,475 kN/m. H er opptil 43 % for høy i mellom (sjekket).
+  - Den kraftstyrte sammenligningen med Fx = 0,3·(1 − cos πt) brukte samme søk. Toppen der (0,676 kN/m ved 7,8 mm) er derfor for høy.
+  - Når røret løfter seg, slipper det sporet bak seg, og kontakten begynner ved rørbunnen. Da er det billigst å dykke ned i glipa bak røret (δ = 14°), selv om glipa er brøkdeler av en millimeter. Fra u = 30 mm når flyteflaten ikke lenger V = W (sjekket).
+  - Med cᵤ = 1 kPa finner søket det laveste minimumet til kontakten bak forsvinner ved u ≈ 190 mm, og H er høyst 2,7 % for høy etter det (sjekket).
+- **Forslag:** Ikke rett søket nå. Den dynamiske modellen bruker hele flyteflaten og finner det laveste minimumet av seg selv. Geometrien må da følge bevegelsen tett, og røret må kunne lande i glipa bak seg (steg 3). Vil man ha den kvasistatiske kjøringen riktig, kan søket skanne alle β i hvert steg (ca. 2 ms med lukket form).
+
 ### 1.10 Allerede sjekket og i orden
 - **Mohr-Coulomb-skiva** nærmer seg Tresca-skiva når φ → 0: 0,3–0,4 % avvik ved φ = 0,1° og ~4 % ved 1° (sjekket for p = 0,1–0,45 og r = 0 og 0,5).
 - **Virtuelt arbeid** stemmer med spenningsløsningen innen 0,02–0,5 % (sjekket).
@@ -108,11 +116,13 @@ Gjør dagens kontroller om til tester med `assert`:
 
 Hold de trege rørsimuleringene utenfor, eller merk dem som `slow`.
 
+Den første fila er `tests/test_yield_envelope.py` (steg 1 i `PLAN_DYNAMIKK.md`). Den kan kjøres som skript til pytest er lagt inn: `uv run tests/test_yield_envelope.py`.
+
 ### 3.2 Steg 1 som er konsistent med steg 2
 Regn synkningen med en øvre grense i stedet for spenningsløsningen. Mekanismen kan være en symmetrisk variant av den med friksjon som snur og en kile som henger fast under rørbunnen, eller den beste av ensidig og tosidig mekanisme. Da starter steg 2 i likevekt (H = 0). Sammenlign V(d) med Martin & White (2012).
 
 ### 3.3 V–H-kurve ved fast geometri
-Regn H_max for flere V ved samme innbygging, og plott kurven. Det er en direkte sammenligning med litteraturen og et nyttig designverktøy. Inngår i steg 1 i `PLAN_DYNAMIKK.md` (flyteflaten).
+**Løst** i steg 1 i `PLAN_DYNAMIKK.md`. `YieldEnvelope` i `slip_line/envelope.py` gir hele flyteflaten (H–V) for en tilstand, i alle retninger. Figur: `plots/yield_envelope.png` fra `plot_yield_envelope.py`; teori og resultater i manualen («Dynamic response of the pipe»). Gjenstår: sammenligning med litteraturen (del 2).
 
 ### 3.4 Lette rør (V/V_max < 1)
 I praksis synker et rør under installasjonslast og skyves så sideveis med lavere vekt. Det kan legges inn som:
