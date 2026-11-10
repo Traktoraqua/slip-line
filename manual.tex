@@ -1096,6 +1096,284 @@ starts with a holding force $H = 1.12$\,kN/m, which passes zero after
 about 16\,mm; at $u = 160$\,mm $w = 79.6$\,mm and $H = -0.46$\,kN/m.
 
 % ====================================================================
+\section{Dynamic response of the pipe}
+\label{sec:dynamic}
+% ====================================================================
+
+The lateral push of Sect.~\ref{sec:lateral} is quasi-static and
+displacement controlled, with $V = W$.  The dynamic model treats the
+pipe as a rigid body with two degrees of freedom, $u$ (toward $+x$)
+and $w$ (down), on rigid-plastic soil, loaded by given forces in time
+(waves).  It is built one step at a time after the plan in
+\texttt{PLAN\_DYNAMIKK.md}.  So far it has the first step: the
+resistance of the soil in every direction of motion, the yield
+envelope.
+
+\subsection{Yield envelope}
+\label{sec:envelope}
+
+Let the pipe move with unit speed along
+$\mathbf{n}(\delta) = (\cos\delta, \sin\delta)$, $\delta$ degrees below
+the horizontal ($y$ down).  $\delta$ is any direction; $\beta$ in
+Sect.~\ref{sec:lateral} (\texttt{beta} in the code) is the one the
+quasi-static push picks.  $\mathbf{F} = (H, V)$ is the force from the
+pipe on the soil, $H$ toward $+x$ and $V$ downward.  For each $\delta$
+the mechanism of Sect.~\ref{sec:lateral} on the current geometry, with
+the contact chain for that direction, gives the dissipation per unit
+speed $\mathcal{D}(\delta)$.  By the upper-bound theorem the soil
+cannot carry a force that does more work than $\mathcal{D}$ in any
+mechanism, so the forces it can carry lie in
+\begin{equation}
+  \mathcal{E} = \bigl\{(H, V) :\;
+  H\cos\delta + V\sin\delta \le \mathcal{D}(\delta)
+  \text{ for all } \delta\bigr\}.
+  \label{eq:envelope}
+\end{equation}
+$\mathcal{E}$ is an intersection of half-planes, so it is convex.  It
+is an upper bound: the true envelope lies inside it.
+
+\textbf{The quasi-static push.}  In Sect.~\ref{sec:lateral} the
+horizontal motion is imposed ($\dot u > 0$) and $V = W$, so only the
+forward directions ($\cos\delta > 0$) are possible.  Their half-planes
+give $H \le (\mathcal{D} - W\sin\delta)/\cos\delta$, and the force
+needed to push is the minimum over the forward $\delta$, reached at
+$\delta = \beta$.  That is the $H$ of \texttt{mechanism()}
+(\texttt{push\_force(W)} of the envelope).  The backward half-planes do
+not limit it, since the pipe may not move back.
+
+They matter when the force is given instead of the motion, as with
+wave loads.  The pipe then stays where it is only if $(H, W)$ lies
+inside $\mathcal{E}$.  Three cases occur at $V = W$
+(Sect.~\ref{sec:envelope_results}):
+\begin{enumerate}
+  \item $H_\text{min} < 0 < H_\text{max}$: the pipe rests under its
+    own weight, and $H_\text{max}$ is the push force.
+  \item $H_\text{min} > 0$: the pipe needs a holding force toward $+x$
+    not to slide back into its trench.
+  \item $V = W$ lies outside $\mathcal{E}$: no $H$ holds the pipe, and
+    it sinks while it moves.  This happens when the pipe has lifted off
+    the trench floor behind it.
+\end{enumerate}
+
+\textbf{Three parts of $\mathcal{D}(\delta)$.}
+\begin{itemize}
+  \item \emph{Forward}, $-90^\circ \le \delta \le 90^\circ$: the
+    one-sided mechanism toward $+x$ on the state
+    (\texttt{lat.field(state, delta, lat.omega\_r)}).
+  \item \emph{Backward}, $90^\circ \le \delta \le 270^\circ$: the same
+    mechanism in the mirror image (\texttt{lat.reversed(state)}),
+    with $\delta = 180^\circ - \delta'$, where $\delta'$ is the
+    direction below the horizontal in the mirror image.  A force
+    $(H', V)$ there is $(-H', V)$ here.
+  \item \emph{Lift-off}: where the pipe moves away from all the soil
+    it touches, $\mathcal{D} = 0$.  Forward this is
+    $\delta \le -\theta_R$ ($\varphi_\text{start} = -\delta$ reaches the
+    contact edge), backward the same on the other side.  These
+    half-planes pass through the origin: the soil carries no tension,
+    and the origin is a corner of $\mathcal{E}$.
+\end{itemize}
+
+\textbf{Normality and corners.}  When the force lies on the boundary of
+$\mathcal{E}$, the pipe moves along the outward normal there (the
+pipe's velocity is then the normal of the envelope).  On an edge the
+direction is the $\delta$ of the half-plane that forms the edge.  At a
+corner the pipe can move in any direction between the normals of the
+two edges that meet there, and the force stays at the corner.
+Corners appear where $\mathcal{D}(\delta)$ is not the support function
+of a convex set ($\mathcal{D} + \mathcal{D}'' < 0$): the half-planes
+for the directions inside the corner do not touch $\mathcal{E}$.  A
+motion in such a direction costs less as a mix of the two mechanisms
+at the corner's edges, alternating in small steps, than with its own
+mechanism.  This is why $\beta$ alternates between two values in some
+quasi-static runs (Sect.~\ref{sec:lateral}).
+
+\textbf{Why $Q$ is not used.}  The vertical collapse load $Q$
+(\texttt{pipe\_formulas.tex}) comes from the symmetric two-sided
+mechanism of the penetration step on a flat surface, and would cap the
+envelope at $V \le Q$.  It holds only at the start: as soon as the pipe
+has moved sideways the contact behind it opens, and the symmetric
+mechanism no longer exists.  At $V = W$ it changes nothing, since
+$Q = W$ at the end of penetration.  The cost is that the envelope is
+too strong for steep downward motion.  At the start the envelope
+carries up to $V = 3.27$\,kN/m at $H = 0$ where $Q = 2.80$\,kN/m (the
+straight-down one-sided mechanism alone gives
+$\mathcal{D}(90^\circ) = 4.29$\,kN/m, but a mix of two directions is
+cheaper).  This matters only when the pipe lands after it has lifted
+off.
+
+\textbf{Construction.}  $\mathcal{D}$ is evaluated in $n$ directions
+(by default 361 forward from $-90^\circ$ to $90^\circ$ and 361 backward,
+steps of $0.5^\circ$).  The polygon is the intersection of the
+half-planes, found by clipping a large square with one half-plane at a
+time (Sutherland--Hodgman).  Directions where the net is not valid are
+skipped, which makes the envelope slightly larger.  The polygon lies
+outside the exact $\mathcal{E}$ and converges to it as $n$ grows.  At
+$V = W$ it gives the smallest $H(\delta_i)$ over the sampled
+directions, within $O(\Delta\delta^2)$ of the golden-section search of
+\texttt{mechanism()}.  For now the envelope needs uniform friction
+(\texttt{PipeLateralClosedForm}, about 11\,ms per envelope, or
+\texttt{PipeLateral(uniform=True)} on the net, which is much slower).
+
+\subsection{Results}
+\label{sec:envelope_results}
+
+Fig.~\ref{fig:envelope} shows the envelopes of states of the
+quasi-static push with uniform friction, $D = 1$\,m, $r = 0.8$,
+$W = 2.8$\,kN/m (\texttt{plot\_yield\_envelope.py}, which also prints
+the table).  ``run'' is the $H$ and $\beta$ of the quasi-static run,
+``push'' is \texttt{push\_force(W)}.
+
+\begin{center}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{rrrrrrrc}
+\toprule
+$u$ [mm] & $d$ [mm] & run $H$ & run $\beta$ [$^\circ$] & push $H$ & push $\delta$ [$^\circ$]
+  & $V_\text{max}$ & $H$ range at $V = W$ \\
+\midrule
+\multicolumn{8}{l}{\emph{$c_u = 5$\,kPa (the pipe of \texttt{PLAN\_DYNAMIKK.md})}} \\
+0  & 2.50 & 0.155 & 17.0   & 0.155 & 17.0   & 3.27 & $-0.156$ to $0.155$ \\
+4  & 6.01 & 0.521 & 11.1   & 0.398 & $-3.5$ & 4.50 & $-0.293$ to $0.398$ \\
+10 & 8.40 & 0.476 & $-4.7$ & 0.255 & 14.0   & 2.95 & $0.150$ to $0.255$ \\
+\midrule
+\multicolumn{8}{l}{\emph{$c_u = 1$\,kPa (\texttt{run\_lateral\_closed\_form.py})}} \\
+0   & 73.7  & 0.360 & 13.8   & 0.360 & 14.0 & 3.79 & $-0.367$ to $0.360$ \\
+50  & 140.2 & 0.760 & 8.6    & 0.760 & 8.5  & 3.01 & $0.589$ to $0.760$ \\
+200 & 208.5 & 1.013 & $-0.6$ & 0.989 & 8.0  & 2.67 & outside \\
+\bottomrule
+\end{tabular}
+\end{center}
+Forces in kN/m; $d$ is the effective embedment, $V_\text{max}$ the
+largest $V$ on the envelope.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{yield_envelope.png}
+\caption{Yield envelopes along the quasi-static push, $r = 0.8$,
+$W = 2.8$\,kN/m, uniform friction.  Dots: the push force at $V = W$,
+open where it lies outside the envelope.  Crosses: the quasi-static run
+where its local search has not found the lowest minimum.}
+\label{fig:envelope}
+\end{figure}
+
+\textbf{At the start} the envelope is nearly symmetric (the pipe sits
+in its own hollow): $H$ at $V = W$ runs from $-0.156$ to $0.155$\,kN/m,
+and the push force agrees with \texttt{mechanism()} to four decimals.
+The largest $H$, $0.237$\,kN/m, is reached at $V = 2.52$\,kN/m, a
+little below $W$.  Along the upper left edge the pipe slides and lifts
+along the contact edge ($\delta = -6^\circ$, $H \approx 0.10\,V$).
+About half of the 722 directions do not touch the envelope: they lie in
+the lift-off corner at the origin and in the corners at the largest
+$H$ and the largest $V$.
+
+\textbf{With $c_u = 5$\,kPa the quasi-static run follows a local
+minimum.}  From $u = 1.25$\,mm the cheapest forward mechanism lifts the
+pipe ($\delta \approx -2^\circ$ to $-5^\circ$), but the run's local
+search stays on the downward branch until $u = 8$\,mm, where $H$ drops
+from $0.678$ to $0.475$\,kN/m.  Its $H$ is up to 43\,\% too high in
+between.  A fresh \texttt{mechanism(state)} (without a guess) finds the
+lower minimum, as the envelope does.  Once the pipe lifts, it leaves
+the trench floor behind it, and the contact starts at the invert.  The
+backward branch then costs nothing for horizontal motion back, so
+$H \ge 0$ on the whole envelope (10\,mm in Fig.~\ref{fig:envelope}), and
+the cheapest forward mechanism dives into the gap behind the pipe
+($\delta = 14^\circ$), although that gap is only a fraction of a
+millimetre.  From $u = 30$\,mm the envelope no longer reaches $V = W$.
+The geometry must therefore follow the motion closely, which comes in
+step~3 of the plan.  With $c_u = 1$\,kPa the run finds the lowest
+minimum until the contact behind is lost near $u = 190$\,mm, and its
+$H$ is at most 2.7\,\% too high after that.
+
+\textbf{After 50\,mm with $c_u = 1$\,kPa} the pipe needs at least
+$0.59$\,kN/m toward $+x$ not to slide back.  This is the holding force
+of Sect.~\ref{sec:lateral}, found there at the start of the push back.
+After 200\,mm the contact behind has gone: the holding force,
+1.12\,kN/m as at the start of the push back, exceeds the push force,
+0.99\,kN/m, so $V = W$ lies outside the envelope.
+
+\textbf{Checks} (\texttt{tests/test\_yield\_envelope.py}, 1\,s, runnable
+as a script and as pytest tests):
+\begin{itemize}
+  \item a rectangle, a triangle rebuilt from its support function, and
+    a circle, whose polygon lies outside it by at most
+    $1/\cos(\Delta\delta/2) - 1$;
+  \item \texttt{push\_force(W)} against a fresh \texttt{mechanism()} on
+    six states ($c_u = 5$\,kPa at 0 and 8\,mm; $c_u = 1$\,kPa at
+    50\,mm, 200\,mm and 40\,mm back): $H$ within $2\cdot10^{-4}$ and
+    $\delta$ within one direction step of $\beta$;
+  \item the largest $H$ at $V = W$ equals the push force where the
+    envelope reaches $V = W$, with $\beta$ among the directions of
+    motion there; at the start the backward value matches
+    \texttt{reversed()};
+  \item the origin is a corner and nothing lies below $V = 0$.
+\end{itemize}
+With 2880 instead of 720 directions $H$ at $V = W$ changes by less than
+$10^{-5}$\,kN/m at the start.
+
+\subsection{API}
+
+\begin{lstlisting}
+import numpy as np
+
+from slip_line.envelope import YieldEnvelope
+from slip_line.lateral import PipeLateralClosedForm
+from slip_line.penetration import PipePenetrationClosedForm
+
+W = 2.8
+sim = PipePenetrationClosedForm(D=1.0, cu=5.0, r=0.8, W=W)
+s1 = sim.run()[-1]
+lat, start = PipeLateralClosedForm.after_penetration(sim, s1)
+env = YieldEnvelope.from_state(lat, start)
+
+H_back, H_fwd = env.H_range(W)  # force given: at rest between
+H, delta = env.push_force(W)  # motion imposed (PipeLateral)
+lo, hi = env.directions([H_fwd, W])  # motion at (H_fwd, W)
+m = lat.mechanism(start)
+deg = np.degrees
+print(f"H at V = W: {H_back:.4f} to {H_fwd:.4f} kN/m")
+print(f"motion: delta = {deg(lo):.2f} to {deg(hi):.2f}")
+print(f"push_force: H = {H:.4f} at delta = {deg(delta):.2f}")
+print(f"mechanism:  H = {m.H:.4f} at beta = {deg(m.beta):.2f}")
+print(f"V max at H = 0: {env.V_range(0.0)[1]:.3f} kN/m")
+n_v, n_on = len(env.vertices), env.active().sum()
+print(f"{n_v} vertices, {n_on} of {len(env.D)} directions touch")
+\end{lstlisting}
+
+Expected output:
+\begin{lstlisting}[numbers=none]
+H at V = W: -0.1556 to 0.1550 kN/m
+motion: delta = 17.00 to 17.00
+push_force: H = 0.1550 at delta = 17.00
+mechanism:  H = 0.1550 at beta = 16.97
+V max at H = 0: 3.274 kN/m
+32 vertices, 368 of 722 directions touch
+\end{lstlisting}
+
+\texttt{YieldEnvelope(vertices)} makes an envelope from a convex
+polygon (counter-clockwise in the $(H, V)$ plane, $V$ up; the order is
+fixed if needed).  \texttt{from\_dissipation(deltas, D)} makes it from
+sampled $\mathcal{D}(\delta)$ (\texttt{nan} entries are skipped), and
+\texttt{from\_state(lat, state, n=720)} from a \texttt{PipeLateral}
+state; \texttt{dissipation(lat, state, deltas)} gives the forward
+$\mathcal{D}$ of a state.  The envelope has \texttt{vertices},
+\texttt{edge\_delta} and \texttt{edge\_D} (direction and dissipation of
+each edge, edge $k$ from vertex $k$ to $k+1$), and \texttt{deltas},
+\texttt{D} (the samples, or \texttt{None}).  Methods:
+\begin{itemize}
+  \item \texttt{support(delta)}: the force on the envelope for motion
+    along $\delta$ and its dissipation (the middle of the edge if
+    $\delta$ is an edge normal);
+  \item \texttt{contains(F, tol=1e-9)}: whether $\mathbf{F}$ lies
+    inside or on the envelope;
+  \item \texttt{H\_range(V)}, \texttt{V\_range(H)}: the chord through
+    the envelope, or \texttt{None} outside it;
+  \item \texttt{push\_force(V)}: $H$ and $\delta$ for a push forward
+    with the motion imposed (Sect.~\ref{sec:lateral});
+  \item \texttt{directions(F)}: the range of directions of motion at a
+    point on the boundary (one value on an edge, two at a corner);
+  \item \texttt{active()}: which sampled directions touch the envelope.
+\end{itemize}
+
+% ====================================================================
 \section{Plotting}
 \label{sec:plot}
 % ====================================================================
@@ -1464,6 +1742,7 @@ File & Contents \\
 \texttt{slip\_line/velocity.py}         & Velocity fields, plastic work, work balance \\
 \texttt{slip\_line/penetration.py}      & \texttt{PipePenetration}: pipe sinking under its weight \\
 \texttt{slip\_line/lateral.py}          & \texttt{PipeLateral}: lateral push and push back \\
+\texttt{slip\_line/envelope.py}         & \texttt{YieldEnvelope}: H--V yield envelope \\
 \texttt{slip\_line/plot.py}             & Built-in figure helpers \\
 \midrule
 \texttt{main.py}                       & Interactive program (Tresca strip or disk) \\
@@ -1472,6 +1751,7 @@ File & Contents \\
 \texttt{animate\_penetration.py}        & Animation: pipe pushed to $P/R = 0.5$ \\
 \texttt{run\_lateral.py}               & Pipe sinking, lateral push and push back \\
 \texttt{run\_lateral\_closed\_form.py}   & The same, closed forms (uniform friction) \\
+\texttt{plot\_yield\_envelope.py}       & Yield envelopes along the lateral push \\
 \texttt{plot\_velocity\_strip.py}       & Velocity field figure — smooth strip \\
 \texttt{plot\_velocity\_disk.py}        & Velocity field figure — disk \\
 \texttt{plot\_mc\_gravity.py}           & Demo script — gravity parametric study \\
@@ -1479,6 +1759,7 @@ File & Contents \\
 \texttt{plot\_disk\_*.py}              & Tresca disk forces and fields vs.\ embedment \\
 \texttt{test\_mc.py}                    & Check script — MC strip (not pytest) \\
 \texttt{test\_mc\_disk.py}              & Check script — MC disk (not pytest) \\
+\texttt{tests/}                        & Checks as pytest tests (also runnable as scripts) \\
 \texttt{plots/}                        & Generated figures \\
 \bottomrule
 \end{tabular}
