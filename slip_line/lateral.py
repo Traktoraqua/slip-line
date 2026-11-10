@@ -705,6 +705,30 @@ class ClosedFormNet:
         s0 = np.cos(om) + np.sin(om) - np.cos(phi + a) - np.sin(phi + a)
         return self.R * ((self.theta_0 - lam) * k + s0)
 
+    @property
+    def area(self) -> float:
+        """Area of the plastic zone (Regions I-III, or Region I and the parallel
+        zone), i.e. the soil volume in the net per unit pipe length.  With
+        omega < 0 and phi_start = 0 it is half the vertical net of
+        PipePenetrationClosedForm."""
+        lam, phi, a, k = self.phi_start, self.theta_max, self.alpha, self.kappa
+        s = min(phi, self.theta_0) - lam
+        sk, ck = np.sin(k), np.cos(k)
+        region_I = s * s * sk * (0.5 * ck + s * sk / 6.0)
+        if not self.use_parallel_zone:  # fan sector and Region III triangle
+            fan = 0.5 * np.pi - phi - self.omega - a
+            return self.R**2 * (region_I + 0.5 * (s * sk) ** 2 * (fan + 1.0))
+        tau_e = phi + a - 0.25 * np.pi
+        d = ck + s * sk - np.cos(tau_e)  # L / (√2·R)
+        uniform = (
+            0.5 * d * d
+            + d * np.sin(tau_e)
+            - s * sk * sk
+            - 0.5 * (phi - self.theta_0)
+            + 0.25 * (np.sin(2.0 * tau_e) - np.sin(2.0 * k))
+        )
+        return self.R**2 * (region_I + uniform)
+
 
 class ClosedFormLateralField:
     """Velocity field of a ClosedFormNet for a pipe moving with speed v0 along

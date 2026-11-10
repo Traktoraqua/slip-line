@@ -986,6 +986,14 @@ the push back are those of \texttt{PipeLateral}.  It takes the same
 arguments (\texttt{n\_fan} and \texttt{n\_disk} are not used) and
 needs $r < 1$.
 
+The net itself is a \texttt{ClosedFormNet}
+(\texttt{field(state, beta, omega).solver}).  Its \texttt{area} is the
+area of the plastic zone, that is, the soil volume in the mechanism per
+unit length (\texttt{pipe\_formulas.tex}, chapter~5).  With
+\texttt{omega} $< 0$ and \texttt{phi\_start=0} it is half the vertical
+net.  It agrees with the sum of the net's triangles to $10^{-2}$ at
+\texttt{n\_disk=30} and to $3\cdot10^{-6}$ at \texttt{n\_disk=480}.
+
 On the same state the two give the same $H(\beta)$ to within the net's
 discretisation (about 1\,\% at \texttt{n\_disk=30}), and the
 dissipation converges to the closed form as the net is refined.  The

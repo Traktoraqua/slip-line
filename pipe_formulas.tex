@@ -385,6 +385,61 @@ loddlinja gjennom rørsenteret, og $L\sin\theta$ under kontaktnivået.
   \label{fig:extent}
 \end{figure}
 
+\subsection*{Arealet av den plastiske sonen}
+
+Med plan tøyning er volumet av jorda i nettet, per lengdeenhet rør, lik
+arealet $A$ av sone~I--III, eller av sone~I og parallellsonen.  Massen er
+$\rho_s A$, der $\rho_s$ er jordas densitet.  Formlene gjelder for kontakt
+fra $\lambda$ til $\varphi$, og $\lambda = 0$ gir fronthalvdelen i (a).  I (b)
+er arealet $2A$, med $\lambda = 0$ og nedre fortegn.
+
+Sone~I dekkes av de rette $\beta$-linjene.  Punktet i avstanden $\rho$ langs
+$\beta$-linja fra $t$ har arealelementet $dA = (R\cos\kappa + \rho)\,d\rho\,dt$,
+der $R\cos\kappa + \rho$ er krumningsradien til $\alpha$-linja i punktet
+(avsnitt~\ref{sec:lateral}).  $\beta$-linja når den ytre $\alpha$-linja ved
+$\rho = R(t - \lambda)\sin\kappa$.  Med $s = \min(\varphi, t_0) - \lambda$ blir
+\begin{equation}
+  A_I = R^2 s^2 \sin\kappa\,\Bigl(\tfrac12\cos\kappa + \tfrac16\,s\sin\kappa\Bigr) .
+  \label{eq:areaI}
+\end{equation}
+Vifta er en sirkelsektor med radius $\ell = Rs\sin\kappa$ og vinkel
+$\Delta\psi$, og sone~III er en trekant med kateter $\ell$.  Til sammen er
+$A_{II} + A_{III} = \tfrac12\ell^2(\Delta\psi + 1)$.  Med
+$2\sin\kappa\cos\kappa = \cos 2\omega = \sqrt{1 - r^2}$ og
+$2\sin^2\kappa = 1 \mp r$ blir
+\begin{equation}
+  \frac{A}{R^2} = \frac{s^2}{4}\Bigl[\sqrt{1 - r^2}
+                  + (1 \mp r)\Bigl(1 + \Delta\psi + \frac{s}{3}\Bigr)\Bigr] ,
+  \qquad s = \varphi - \lambda ,\quad \varphi \le t_0 .
+  \label{eq:area}
+\end{equation}
+For glatt rør med $\theta = \lambda = 0$ og liten $\varphi$ er
+$A \approx (2 + \pi/2)B^2/4$, med $B = R\varphi$.  Det er den ene halvdelen
+av Hill-mekanismen for en stripe med halv bredde $B$.
+
+\textbf{Med parallellsone, (a), $\varphi > t_0$.}  Sone~I går til $t_0$, så
+$s = t_0 - \lambda$ i \eqref{eq:areaI}.  Den jevne sonen foran den ytre buen
+avgrenses av $\beta$-linja fra $t_0$, buen, overflaten fra E til F og den
+rette $\alpha$-linja opp til F.  I koordinater langs $\alpha$- og
+$\beta$-retningen er overflaten en $45^\circ$-linje og røret en sirkel, og
+arealet blir
+\begin{equation}
+  \frac{A_U}{R^2} = \tfrac12 d^2 + d\sin\tau_E - s\sin^2\kappa
+                    - \tfrac12(\varphi - t_0) + \tfrac14\bigl(\sin 2\tau_E - \sin 2\kappa\bigr) ,
+  \label{eq:areapar}
+\end{equation}
+med $\tau_E = \varphi + \theta - \pi/4$ og $d = L/(\sqrt2\,R)$, der $L$ er
+fra \eqref{eq:Lparlambda}.  Da er $A = A_I + A_U$.  Det første leddet er den
+rettvinklede trekanten med hypotenusen EF.  Ved $\varphi = t_0$ gir
+\eqref{eq:areapar} trekanten $\tfrac12\ell^2$ i sone~III, det samme som
+\eqref{eq:area} med $\Delta\psi = 0$.
+
+For $P/R = 0{,}4$, $r = 0{,}3$ og $\theta = 15^\circ$
+(figur~\ref{fig:problem}) er $A = 0{,}437R^2$ i (a) og $2A = 1{,}440R^2$ i
+(b).  I koden gir \texttt{ClosedFormNet.area} arealet.  Jorda i sonen beveger
+seg ikke som et stivt legeme.  Til treghetskrefter trengs derfor også
+hastighetsfordelingen i avsnitt~\ref{sec:lateral}.
+
 % ----------------------------------------------------------------------
 \section{Hastigheten langs overflaten}
 \label{sec:velocity}
@@ -772,6 +827,18 @@ $10^{-5}R$ og hastigheten under $9\cdot10^{-4}v_0$.
 På samme tilstand gir \texttt{PipeLateralClosedForm} og
 \texttt{PipeLateral(uniform=True)} samme $H(\delta)$ innen omtrent 1\,\% ved
 \texttt{n\_disk=30}.
+
+Arealet \eqref{eq:areaI}--\eqref{eq:areapar} er sammenlignet med arealet
+innenfor randen fra formlene (kontaktbuen, den ytre $\alpha$-linja og
+overflaten, tett samplet), med avvik under $10^{-7}$.  Det er også
+sammenlignet med summen av trekantene i nettet (\texttt{plastic\_work()} i
+\texttt{InclinedDiskVelocityField}).  Det er gjort i 320 tilfeller av (a),
+med $P/R = 0{,}1$--$1$, $r = 0$--$0{,}9$, $\theta = -15^\circ$--$20^\circ$ og
+$\lambda = 0$, $-\varphi/2$, $-\varphi$ og $\varphi/3$, og i 74 tilfeller av
+(b).  For (b) er det også sjekket på \texttt{DiskPrandtlSolver} med
+\texttt{vertical\_shear=True} og flat overflate.  Det største relative
+avviket minker fra $1\cdot10^{-2}$ med \texttt{n\_disk=30} til
+$5\cdot10^{-5}$ med 120 og $3\cdot10^{-6}$ med 480.
 
 Sammenhengen med koden:
 \begin{itemize}
