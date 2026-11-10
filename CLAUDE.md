@@ -46,6 +46,8 @@ Conventions that matter across files:
 
 ## Known issues
 
+`PLAN_DYNAMIKK.md` (Norwegian) is the step-by-step plan for the dynamic pipe model (two degrees of freedom, yield envelope, wave loads). Follow it one step at a time: documentation first (theory in `manual.tex` before the code), and the step is done only when the checks, docs and its status table are updated; get the user's go-ahead before starting the next step.
+
 `VIDERE_ARBEID.md` (Norwegian) lists results that are known to be wrong or uncertain, literature checks and planned work, in a recommended order. Read the relevant item before changing the affected code, and update the file when an item is resolved. The ones most likely to bite:
 
 - `main.py`'s strip option defaults to r = 1.0, which gives the wrong `PrandtlSolver` answer (see above).

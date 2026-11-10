@@ -2,6 +2,8 @@
 
 Status 26.10.2026. Punktene i del 1 er ting i dagens kode eller dokumentasjon som gir feil eller usikre svar. Del 2 er forslag til verifisering mot litteratur. Del 3 er forslag til videreutvikling. Tall merket «sjekket» er kjørt med dagens kode.
 
+Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i `PLAN_DYNAMIKK.md`.
+
 ## Anbefalt rekkefølge
 
 1. **Rett `main.py`** (1.1 og 1.3). Den gir feil svar i dag, og retting er rask.
@@ -110,7 +112,7 @@ Hold de trege rørsimuleringene utenfor, eller merk dem som `slow`.
 Regn synkningen med en øvre grense i stedet for spenningsløsningen. Mekanismen kan være en symmetrisk variant av den med friksjon som snur og en kile som henger fast under rørbunnen, eller den beste av ensidig og tosidig mekanisme. Da starter steg 2 i likevekt (H = 0). Sammenlign V(d) med Martin & White (2012).
 
 ### 3.3 V–H-kurve ved fast geometri
-Regn H_max for flere V ved samme innbygging, og plott kurven. Det er en direkte sammenligning med litteraturen og et nyttig designverktøy.
+Regn H_max for flere V ved samme innbygging, og plott kurven. Det er en direkte sammenligning med litteraturen og et nyttig designverktøy. Inngår i steg 1 i `PLAN_DYNAMIKK.md` (flyteflaten).
 
 ### 3.4 Lette rør (V/V_max < 1)
 I praksis synker et rør under installasjonslast og skyves så sideveis med lavere vekt. Det kan legges inn som:
@@ -120,7 +122,7 @@ I praksis synker et rør under installasjonslast og skyves så sideveis med lave
 Lette rør skal stige og eventuelt bryte ut (breakout). Det er den viktigste situasjonen for lateral knekking (lateral buckling).
 
 ### 3.5 Flere sykluser
-`reversed()` kan i prinsippet brukes flere ganger, men det er bare testet for én snu. Kjør flere fram-og-tilbake-sykluser og sjekk hvordan bermene bygges opp og hvordan H endrer seg per syklus.
+`reversed()` kan i prinsippet brukes flere ganger, men det er bare testet for én snu. Kjør flere fram-og-tilbake-sykluser og sjekk hvordan bermene bygges opp og hvordan H endrer seg per syklus. Inngår i steg 4 i `PLAN_DYNAMIKK.md`.
 
 ### 3.6 Egenvekt og skjærstyrke som øker med dybden
 Det viktigste som mangler for reell offshore leire:
