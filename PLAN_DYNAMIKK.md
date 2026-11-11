@@ -99,12 +99,12 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
 - **Resultat (10.11.2026):**
   - `slip_line/envelope.py` med `YieldEnvelope`. I tillegg til det som er nevnt over har den `push_force(V)`, skyvet forover med styrt forskyvning, slik `mechanism()` regner, og `H_range`, `V_range`, `directions` og `active`.
   - Kontrollene ligger i `tests/test_yield_envelope.py` (8 tester, 1 s). De er skrevet for pytest, men kjøres som skript til pytest er lagt inn.
-  - Manualen: ny seksjon 8 «Dynamic response of the pipe» med teori, resultater, API og eksempel. `README.md`, `CLAUDE.md` og `VIDERE_ARBEID.md` (3.3 løst, 3.1 og ny 1.11) er oppdatert.
+  - Manualen: ny seksjon 8 «Dynamic response of the pipe» med teori, resultater, API og eksempel. `README.md`, `CLAUDE.md` og `VIDERE_ARBEID.md` (3.3 løst, 3.1 og ny 1.10) er oppdatert.
   - **Avvik fra planen:**
     - Skyvet styrer forskyvningen, så røret får ikke gå bakover. Derfor er det `push_force(W)` som skal være lik `mechanism()`, ikke den største H på flyteflaten. De to er like så lenge halvplanene bakover ikke skjærer flyteflaten ved V = W.
     - Med cᵤ = 5 kPa har røret løftet seg og mistet kontakten bak seg allerede etter ~8 mm, og fra 30 mm når flyteflaten ikke V = W. Figuren viser derfor cᵤ = 5 kPa ved 0, 4 og 10 mm, og kjøringen med cᵤ = 1 kPa ved 0, 50 og 200 mm. Kontrollen ved 50 mm, 200 mm og etter skyv tilbake bruker også cᵤ = 1 kPa.
   - **Funn:**
-    - Med cᵤ = 5 kPa følger den kvasistatiske kjøringen et lokalt minimum fra 1,25 mm. H er der opptil 43 % for høy (`VIDERE_ARBEID.md` 1.11).
+    - Med cᵤ = 5 kPa følger den kvasistatiske kjøringen et lokalt minimum fra 1,25 mm. H er der opptil 43 % for høy (`VIDERE_ARBEID.md` 1.10).
     - Når røret mangler kontakt bak seg, blir flyteflaten ensidig: H ≥ 0, og ved H = 0 bærer den ingenting. Glipa bak røret er likevel bare brøkdeler av en millimeter.
 
 ## Steg 2 – Bevegelseslikningen på fast flyteflate

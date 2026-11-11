@@ -1,16 +1,16 @@
 # Videre arbeid og ting som bør sjekkes
 
-Status 10.11.2026. Punktene i del 1 er ting i dagens kode eller dokumentasjon som gir feil eller usikre svar. Del 2 er forslag til verifisering mot litteratur. Del 3 er forslag til videreutvikling. Tall merket «sjekket» er kjørt med dagens kode.
+Status 11.11.2026. Punktene i del 1 er ting i dagens kode eller dokumentasjon som gir feil eller usikre svar. Del 2 er forslag til verifisering mot litteratur. Del 3 er forslag til videreutvikling. Tall merket «sjekket» er kjørt med dagens kode.
 
 Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i `PLAN_DYNAMIKK.md`.
 
 ## Anbefalt rekkefølge
 
 1. **Rett `main.py`** (1.1 og 1.3). Den gir feil svar i dag, og retting er rask.
-2. **Lag en pytest-suite** (3.1), så resten kan endres trygt.
+2. **Lag en pytest-suite** (3.1), så resten kan endres trygt. Den første testfila finnes, og pytest legges inn i steg 2 i `PLAN_DYNAMIKK.md`.
 3. **Gjør steg 1 konsistent med steg 2** (1.4 og 3.2). Det påvirker alle tallene fra rørsimuleringene.
 4. **Sammenlign med publiserte løsninger** (del 2).
-5. **Utvid med lettere rør, sykluser og egenvekt** (3.3–3.6).
+5. **Utvid med lettere rør, sykluser og egenvekt** (3.4–3.6).
 
 ---
 
@@ -48,6 +48,7 @@ Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i
   - Røret synker for lite i steg 1.
   - Steg 2 starter med H = −0,29 kN/m i stedet for 0.
   - Retningen endres brått de første millimeterne.
+- **Jevn friksjon:** Med `PipeLateralClosedForm` (+r·cᵤ mot kanten på hele kontakten) er mekanismen derimot sterkere enn spenningsløsningen. Ved start bærer flyteflaten V = 3,78 kN/m ved H = 0 for cᵤ = 1 kPa og 3,27 kN/m for cᵤ = 5 kPa, og skyvet starter med H = 0,360 og 0,155 kN/m (sjekket). Avviket fra steg 1 avhenger altså av friksjonsmodellen.
 - **Forslag:** Se 3.2.
 
 ### 1.5 Hastighetsfeltet for vertikal skive er ikke kinematisk tillatt
@@ -73,7 +74,7 @@ Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i
 - **`PipeLateral`:** hele forløpet med finere nett (`n_disk`, `n_fan`). Bare V ved H = 0 er sjekket med `n_disk = 90`.
 - **Forslag:** Lag en liten konvergenstabell for hver og legg den i manualen.
 
-### 1.11 `mechanism()` følger et lokalt minimum (lett rør, cᵤ = 5 kPa)
+### 1.10 `mechanism()` følger et lokalt minimum (lett rør, cᵤ = 5 kPa)
 - **Hva:** Søket i hvert steg starter fra β i forrige steg og finner bare minimumet i nærheten. Flyteflaten (`YieldEnvelope`, steg 1 i `PLAN_DYNAMIKK.md`) viser at det ikke alltid er det laveste. Med D = 1 m, cᵤ = 5 kPa, r = 0,8 og W = 2,8 kN/m (jevn friksjon):
   - Fra u = 1,25 mm er det billigst å løfte røret (δ ≈ −2° til −5°), men kjøringen fortsetter nedover til u = 8 mm. Der faller H fra 0,678 til 0,475 kN/m. H er opptil 43 % for høy i mellom (sjekket).
   - Den kraftstyrte sammenligningen med Fx = 0,3·(1 − cos πt) brukte samme søk. Toppen der (0,676 kN/m ved 7,8 mm) er derfor for høy.
@@ -81,7 +82,7 @@ Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i
   - Med cᵤ = 1 kPa finner søket det laveste minimumet til kontakten bak forsvinner ved u ≈ 190 mm, og H er høyst 2,7 % for høy etter det (sjekket).
 - **Forslag:** Ikke rett søket nå. Den dynamiske modellen bruker hele flyteflaten og finner det laveste minimumet av seg selv. Geometrien må da følge bevegelsen tett, og røret må kunne lande i glipa bak seg (steg 3). Vil man ha den kvasistatiske kjøringen riktig, kan søket skanne alle β i hvert steg (ca. 2 ms med lukket form).
 
-### 1.10 Allerede sjekket og i orden
+### 1.11 Allerede sjekket og i orden
 - **Mohr-Coulomb-skiva** nærmer seg Tresca-skiva når φ → 0: 0,3–0,4 % avvik ved φ = 0,1° og ~4 % ved 1° (sjekket for p = 0,1–0,45 og r = 0 og 0,5).
 - **Virtuelt arbeid** stemmer med spenningsløsningen innen 0,02–0,5 % (sjekket).
 - **Alle eksemplene i manualen** gir de tallene som står der (sjekket 26.10.2026).
@@ -116,7 +117,7 @@ Gjør dagens kontroller om til tester med `assert`:
 
 Hold de trege rørsimuleringene utenfor, eller merk dem som `slow`.
 
-Den første fila er `tests/test_yield_envelope.py` (steg 1 i `PLAN_DYNAMIKK.md`). Den kan kjøres som skript til pytest er lagt inn: `uv run tests/test_yield_envelope.py`.
+Den første fila er `tests/test_yield_envelope.py` (steg 1 i `PLAN_DYNAMIKK.md`). Den kan kjøres som skript til pytest er lagt inn: `uv run tests/test_yield_envelope.py`. `test_*.py` i rota er skript og ikke tester, så pytest må bare lete i `tests/`.
 
 ### 3.2 Steg 1 som er konsistent med steg 2
 Regn synkningen med en øvre grense i stedet for spenningsløsningen. Mekanismen kan være en symmetrisk variant av den med friksjon som snur og en kile som henger fast under rørbunnen, eller den beste av ensidig og tosidig mekanisme. Da starter steg 2 i likevekt (H = 0). Sammenlign V(d) med Martin & White (2012).
@@ -154,8 +155,8 @@ Dataene til dashbordet ble eksportert med skript og pickle-filer i en midlertidi
 - **ruff:** Ferdig (3.11.2026). `ruff format` og `ruff check` gir ingen funn. Alle skriptene gir samme utskrift og de samme figurene som før. De to `except Exception` i Region I i skivene fanger nå bare numeriske feil, så programmeringsfeil ikke lenger gir et stille, ufullstendig nett.
 - **Gamle skript:** vurder å fjerne eller slå sammen `dbg.py`, `test_disk2.py` og liknende.
 - **`solver.py`:** ~2000 linjer; kan deles opp (stripe, skive, Mohr-Coulomb).
-- **Lokale endringer:** bestem hva som skal skje med de endrede `plots/mc_gravity_*.png` og `manual.pdf`.
+- **Lokale endringer:** bestem hva som skal skje med de endrede `plots/mc_gravity_*.png`, `manual.pdf` og `pipe_formulas.pdf`.
 
 ### 3.11 Manualen
-- Legg til en figur for sideforskyvningen (nett, hastighet og forløp). I dag har den bare tabeller.
+- Legg til en figur for sideforskyvningen (nett, hastighet og forløp). Seksjonen om sideforskyvning har i dag bare tabeller; den eneste figuren av rørskyvet er flyteflatene i «Dynamic response of the pipe».
 - Ta inn resultatene fra 1.4–1.6 når de er avklart.
