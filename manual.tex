@@ -109,7 +109,7 @@ from slip_line.solver import (
 )
 \end{lstlisting}
 
-Three further modules build on the Tresca nets:
+Four further modules build on the Tresca nets:
 \begin{description}
   \item[\texttt{velocity.py}] Geiringer velocity fields on the strip
         and disk nets, with checks of the plastic work and the
@@ -121,6 +121,9 @@ Three further modules build on the Tresca nets:
         it is free to move vertically, as an upper-bound mechanism,
         and a push back (\texttt{PipeLateral}, Sect.~\ref{sec:lateral});
         \texttt{PipeLateralClosedForm} does it with closed forms.
+  \item[\texttt{envelope.py}] The $H$--$V$ yield envelope of the soil
+        for one state of the push, the first step of a dynamic model
+        (\texttt{YieldEnvelope}, Sect.~\ref{sec:dynamic}).
 \end{description}
 
 \subsection{Sign conventions and coordinate system}
@@ -272,7 +275,12 @@ Scripts in the project root import the package directly
 (\texttt{from slip\_line.solver import ...}).  The \texttt{test\_*.py}
 and \texttt{plot\_*.py} files there are standalone scripts that print
 tables or save figures in \texttt{plots/}; they are not a pytest
-suite.
+suite.  The checks in \texttt{tests/} are written as pytest tests, and
+each file also runs as a script that prints \texttt{ok} per test:
+
+\begin{lstlisting}[language=bash,numbers=none]
+uv run tests/test_yield_envelope.py
+\end{lstlisting}
 
 % ====================================================================
 \section{Solver classes and API}
@@ -890,7 +898,11 @@ that minimises $H$, the normality rule of the upper-bound yield
 envelope.  The first step scans $\beta$ from $-20^\circ$ to $85^\circ$;
 later steps search locally around the previous mechanism
 (golden-section search).  If the search ends on an invalid
-(incomplete) net, the best valid mechanism it has seen is used.
+(incomplete) net, the best valid mechanism it has seen is used.  The
+local search can stay in a local minimum when a cheaper mechanism
+appears elsewhere: with $c_u = 5$\,kPa it overestimates $H$ by up to
+43\,\% (Sect.~\ref{sec:envelope_results}).  \texttt{mechanism(state)}
+without a guess scans $\beta$ again and finds the lowest minimum.
 
 \subsection{Net angle: free, reversing or uniform friction}
 
@@ -1089,9 +1101,11 @@ $u = 160$\,mm, with $w = 148.7$\,mm.
 With uniform friction (\texttt{run\_lateral\_closed\_form.py}) the pipe
 hardly sinks: $\beta$ starts at $13.8^\circ$ with $H = 0.36$\,kN/m and
 falls steadily, and at $u = 200$\,mm $w = 65.3$\,mm,
-$\beta = -0.7^\circ$ and $H = 1.01$\,kN/m.  Near the end the pipe rises
+$\beta = -0.6^\circ$ and $H = 1.01$\,kN/m.  Near the end the pipe rises
 and the contact behind it shrinks to the invert; $\beta$ then alternates
-between about $0^\circ$ and $9^\circ$ from step to step.  The push back
+between about $0^\circ$ and $9^\circ$ from step to step (186--194\,mm).
+From there the run misses the lowest minimum, and $H$ is up to
+2.7\,\% too high (Sect.~\ref{sec:envelope_results}).  The push back
 starts with a holding force $H = 1.12$\,kN/m, which passes zero after
 about 16\,mm; at $u = 160$\,mm $w = 79.6$\,mm and $H = -0.46$\,kN/m.
 
@@ -1815,6 +1829,18 @@ File & Contents \\
         mechanism with a velocity jump becomes cheaper, the pipe dives
         a little, and the contact behind returns.  This comes from the
         contact rule of \texttt{PipeLateral}, not from the closed forms.
+
+  \item[$H$ of a light pipe drops suddenly in \texttt{PipeLateral.run}:]
+        The local search stayed in a local minimum until a cheaper
+        mechanism (often one that lifts the pipe) took over.  Check the
+        states with a fresh search, \texttt{lat.mechanism(state)}, or
+        with the envelope's \texttt{push\_force(W)}
+        (Sect.~\ref{sec:envelope_results}).
+
+  \item[\texttt{The envelope needs uniform friction}:]
+        \texttt{YieldEnvelope.from\_state} works only for
+        \texttt{PipeLateralClosedForm} or
+        \texttt{PipeLateral(uniform=True)}.
 
   \item[$\beta$ jumps from step to step with reversing friction:]
         The switch $\varphi_s$ moves between nodes of the contact
