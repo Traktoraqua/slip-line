@@ -10,6 +10,7 @@ from functools import cache
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -227,6 +228,50 @@ def test_energy_balance():
         num.append(e["numerical"])
     assert 1.8 < num[0] / num[1] < 2.2, num
     assert num[1] < 1e-2 * e["work"]
+
+
+def test_energy_from_moving_start():
+    """Started from a moving state, "kinetic" is the change of kinetic
+    energy from that state, and the balance still holds exactly."""
+    T = 2.0
+    M = pipe_mass(W, 1.0)
+    dyn = PipeDynamics(
+        pipe_envelope(), W=W, M=M, Fx=lambda t: 0.3 * np.sin(2 * np.pi * t / T)
+    )
+    fastest = max(dyn.run(T, T / 1000), key=lambda s: abs(s.u_dot))
+    assert abs(fastest.u_dot) > 1e-3
+    states = dyn.run(T, T / 1000, start=fastest)
+    e = dyn.energy(states)
+
+    def kinetic(s):
+        v = np.array([s.u_dot, s.w_dot])
+        return 0.5 * float(v @ (1e-3 * np.asarray(M) * v))
+
+    assert abs(e["kinetic"] - (kinetic(states[-1]) - kinetic(fastest))) < 1e-15
+    total = e["dissipation"] + e["kinetic"] + e["numerical"]
+    assert abs(e["work"] - total) < 1e-9 * abs(e["work"]), e
+
+
+def test_run_ends_at_t_end():
+    """If t_end is not a multiple of dt, the last step is shorter and the
+    run still ends at t_end."""
+    dyn = PipeDynamics(BOX, W=2.0, M=(1000.0, 1000.0))
+    assert np.allclose([s.t for s in dyn.run(1.0, 0.3)], [0.0, 0.3, 0.6, 0.9, 1.0])
+    assert np.allclose([s.t for s in dyn.run(1.0, 0.25)], [0.0, 0.25, 0.5, 0.75, 1.0])
+
+
+def test_rejects_bad_mass_and_step():
+    """Masses and time steps must be positive."""
+    with pytest.raises(ValueError):
+        PipeDynamics(BOX, W=2.0, M=(0.0, 1000.0))
+    with pytest.raises(ValueError):
+        closest_point(BOX, [2.0, 1.0], (-1.0, 1.0))
+    dyn = PipeDynamics(BOX, W=2.0, M=(1000.0, 1000.0))
+    for dt in (0.0, -0.1):
+        with pytest.raises(ValueError):
+            dyn.step(dyn.rest(), dt)
+        with pytest.raises(ValueError):
+            dyn.run(1.0, dt)
 
 
 if __name__ == "__main__":

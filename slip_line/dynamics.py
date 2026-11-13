@@ -49,10 +49,12 @@ def closest_point(env: YieldEnvelope, F, M) -> np.ndarray:
     M = (M_x, M_z): F itself if it lies inside.  Scaling the forces by
     M^(−1/2) makes the distance Euclidean and keeps the polygon convex; the
     point is then the nearest of the closest points on all edges."""
-    F = np.asarray(F, dtype=float)
+    F, M = np.asarray(F, dtype=float), np.asarray(M, dtype=float)
+    if np.any(M <= 0.0):
+        raise ValueError("The masses must be positive.")
     if env.contains(F):
         return F.copy()
-    s = 1.0 / np.sqrt(np.asarray(M, dtype=float))
+    s = 1.0 / np.sqrt(M)
     P, f = env.vertices * s, F * s
     E = np.roll(P, -1, axis=0) - P
     t = np.clip(np.sum((f - P) * E, axis=1) / np.sum(E * E, axis=1), 0.0, 1.0)
@@ -91,6 +93,8 @@ class PipeDynamics:
         self.env = env
         self.W = W
         self.M = np.array(M, dtype=float)
+        if np.any(self.M <= 0.0):
+            raise ValueError("The masses must be positive.")
         self.Fx = Fx if Fx is not None else (lambda t: 0.0)
         self.F_L = F_L if F_L is not None else (lambda t: 0.0)
         self._Mt = 1e-3 * self.M  # t/m
@@ -109,6 +113,8 @@ class PipeDynamics:
         """One backward Euler step of dt from s: the soil force is the point
         of the envelope closest to F* = F_ext(t + dt) + M·v/dt (metric
         M⁻¹), and the new velocity v = dt·M⁻¹·(F* − F)."""
+        if dt <= 0.0:
+            raise ValueError("The time step must be positive.")
         t = s.t + dt
         v = np.array([s.u_dot, s.w_dot])
         F_star = self.load(t) + self._Mt * v / dt
@@ -118,12 +124,18 @@ class PipeDynamics:
 
     def run(self, t_end: float, dt: float, start=None) -> list[DynamicState]:
         """States from start (default: at rest at t = 0) to t_end, in steps
-        of dt (the times are start.t + k·dt, without round-off drift)."""
+        of dt at the times start.t + k·dt (without round-off drift).  The
+        last step is shorter if t_end is not a multiple of dt."""
+        if dt <= 0.0:
+            raise ValueError("The time step must be positive.")
         s = start if start is not None else self.rest()
-        t0, n = s.t, round((t_end - s.t) / dt)
+        n = int(np.floor((t_end - s.t) / dt + 1e-9))
+        times = [s.t + k * dt for k in range(1, n + 1)]
+        if t_end - (times[-1] if times else s.t) > 1e-9 * dt:
+            times.append(t_end)
         states = [s]
-        for k in range(1, n + 1):
-            states.append(self.step(states[-1], t0 + k * dt - states[-1].t))
+        for t in times:
+            states.append(self.step(states[-1], t - states[-1].t))
         return states
 
     def energy(self, states: list[DynamicState]) -> dict:
