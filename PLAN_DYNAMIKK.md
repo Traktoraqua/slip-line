@@ -127,7 +127,7 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
 - **Data:** M. Som eksempel brukes 1900 kg/m (1090 kg/m fra W, pluss C_a = 1).
 - **Resultat (13.11.2026):**
   - `slip_line/dynamics.py` med `PipeDynamics` (`step`, `run`, `energy`), `closest_point`, `DynamicState` og `pipe_mass`. Ett tidssteg tar ~10 µs på flyteflaten til røret (32 hjørner).
-  - Kontrollene ligger i `tests/test_dynamics.py` (9 tester, 0,2 s). pytest er lagt inn: `uv run pytest` kjører alle 17 testene på ~1 s.
+  - Kontrollene ligger i `tests/test_dynamics.py` (12 tester, 0,2 s). pytest er lagt inn: `uv run pytest` kjører alle 20 testene på ~1 s.
   - Manualen: underseksjon 8.4 «Equations of motion» med teori, figur og kontroller, og 8.5 med API og eksempel. Figur `plots/projection.png` fra `plot_projection.py`. `README.md`, `CLAUDE.md` og `VIDERE_ARBEID.md` (3.1 delvis gjort) er oppdatert.
   - **Avvik fra planen:**
     - `pipe_mass(W, D, C_a=1)` er lagt til, så C_a kan endres senere. Massen er m = W/g + ρ_w·πD²/4 = 285 + 805 = 1090 kg/m: vekten i vann pluss oppdriften, med D = 1 m og sjøvann.

@@ -1,6 +1,6 @@
 # Videre arbeid og ting som bør sjekkes
 
-Status 11.11.2026. Punktene i del 1 er ting i dagens kode eller dokumentasjon som gir feil eller usikre svar. Del 2 er forslag til verifisering mot litteratur. Del 3 er forslag til videreutvikling. Tall merket «sjekket» er kjørt med dagens kode.
+Status 13.11.2026. Punktene i del 1 er ting i dagens kode eller dokumentasjon som gir feil eller usikre svar. Del 2 er forslag til verifisering mot litteratur. Del 3 er forslag til videreutvikling. Tall merket «sjekket» er kjørt med dagens kode.
 
 Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i `PLAN_DYNAMIKK.md`.
 

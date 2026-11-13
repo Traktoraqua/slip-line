@@ -1480,17 +1480,18 @@ the distance Euclidean and keeps the polygon convex; the closest point
 is then the nearest of the closest points on all edges.
 
 \textbf{Energy.}  Multiplying (\ref{eq:euler}) by
-$\Delta t\,\mathbf{v}_{k+1}$ and summing over the steps from rest gives
-exactly
+$\Delta t\,\mathbf{v}_{k+1}$ and summing over the steps gives exactly
 \begin{equation}
   \underbrace{\sum_k \Delta t\,\mathbf{F}_\text{ext}(t_{k+1})\cdot\mathbf{v}_{k+1}}_{\text{work of the loads}}
   = \underbrace{\sum_k \Delta t\,\mathbf{F}_{k+1}\cdot\mathbf{v}_{k+1}}_{\text{dissipation}}
-  + \underbrace{\tfrac12\,\mathbf{v}^\mathsf{T}\mathbf{M}\mathbf{v}}_{\text{kinetic energy}}
+  + \underbrace{\Delta\bigl(\tfrac12\,\mathbf{v}^\mathsf{T}\mathbf{M}\mathbf{v}\bigr)}_{\text{kinetic energy}}
   + \underbrace{\sum_k \tfrac12\,\Delta\mathbf{v}_k^\mathsf{T}\mathbf{M}\,\Delta\mathbf{v}_k}_{\text{numerical damping}},
   \label{eq:energy}
 \end{equation}
-with $\Delta\mathbf{v}_k = \mathbf{v}_{k+1} - \mathbf{v}_k$.  The work
-of the loads includes that of the weight, $W\,\Delta w$.  The
+with $\Delta\mathbf{v}_k = \mathbf{v}_{k+1} - \mathbf{v}_k$.  The kinetic
+energy enters as its change from the first state, which is its final
+value when the pipe starts from rest.  The work of the loads includes
+that of the weight, $W\,\Delta w$.  The
 dissipation in a step is the support function of $\mathcal{E}$ in the
 direction of motion times the distance moved, so it is never negative.
 The last term is the damping of backward Euler.  It is positive, and
@@ -1561,8 +1562,10 @@ $F_0 = 1.5\,H_0$, $\Delta t = T/2000$ (\texttt{plot\_projection.py}).}
   \item unequal masses ($C_{a,x} = 1$, $C_{a,z} = 2.3$) on the pipe
     envelope: the velocity satisfies normality in every step of the
     motion;
-  \item the energy balance (\ref{eq:energy}) to round-off, with the
-    numerical damping halving with $\Delta t$.
+  \item the energy balance (\ref{eq:energy}) to round-off, also from
+    a moving start, with the numerical damping halving with $\Delta t$;
+  \item a run ends at $t_\text{end}$ also when it is not a multiple of
+    $\Delta t$, and masses and steps that are not positive are refused.
 \end{itemize}
 
 \subsection{API: motion on a fixed envelope}
@@ -1653,9 +1656,12 @@ kJ/m; $H$ toward $+x$ and $V$ down, from the pipe on the soil):
     the pipe at rest with the soil force closest to the load;
     \texttt{step(state, dt)} one step of (\ref{eq:euler});
     \texttt{run(t\_end, dt, start=None)} the list of states from
-    \texttt{start} (by default \texttt{rest()}); \texttt{energy(states)}
-    the terms of (\ref{eq:energy}) as a dict with \texttt{work},
-    \texttt{dissipation}, \texttt{kinetic} and \texttt{numerical};
+    \texttt{start} (by default \texttt{rest()}), with a shorter last step
+    if \texttt{t\_end} is not a multiple of \texttt{dt};
+    \texttt{energy(states)} the terms of (\ref{eq:energy}) as a dict with
+    \texttt{work}, \texttt{dissipation}, \texttt{kinetic} (the change from
+    the first state) and \texttt{numerical}.  Masses and \texttt{dt} must
+    be positive (\texttt{ValueError});
   \item \texttt{DynamicState}: \texttt{t}, \texttt{u}, \texttt{w},
     \texttt{u\_dot}, \texttt{w\_dot}, \texttt{H}, \texttt{V}, and
     \texttt{delta}, the direction of motion below the horizontal
