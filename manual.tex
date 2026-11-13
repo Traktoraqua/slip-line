@@ -1126,10 +1126,11 @@ displacement controlled, with $V = W$.  The dynamic model treats the
 pipe as a rigid body with two degrees of freedom, $u$ (toward $+x$)
 and $w$ (down), on rigid-plastic soil, loaded by given forces in time
 (waves).  It is built one step at a time after the plan in
-\texttt{PLAN\_DYNAMIKK.md}.  So far it has the first two steps: the
+\texttt{PLAN\_DYNAMIKK.md}.  So far it has the first three steps: the
 resistance of the soil in every direction of motion, the yield
-envelope, and the motion of the pipe with its mass on a fixed envelope
-(Sect.~\ref{sec:motion}).
+envelope; the motion of the pipe with its mass on a fixed envelope
+(Sect.~\ref{sec:motion}); and a geometry that follows the motion
+forward (Sect.~\ref{sec:geometry_time}).
 
 \subsection{Yield envelope}
 \label{sec:envelope}
@@ -1667,6 +1668,63 @@ kJ/m; $H$ toward $+x$ and $V$ down, from the pipe on the soil):
     \texttt{delta}, the direction of motion below the horizontal
     (\texttt{nan} at rest).
 \end{itemize}
+
+\subsection{Geometry that follows the motion}
+\label{sec:geometry_time}
+
+The envelope belongs to one geometry: the embedment, the berm in front,
+the trench behind and the ends of the contact.  As the pipe moves, the
+geometry changes and the envelope with it.  Step~3 of the plan couples
+the two.  The time steps of Sect.~\ref{sec:motion} run on the current
+envelope, and when the pipe has moved a path length $\Delta s$ the
+geometry is updated and a new envelope is made (not in every time
+step, since an envelope takes about 15\,ms).
+
+\textbf{Soil flow for any direction.}  The velocity of a time step lies
+in the normal cone at $\mathbf{F}$.  On an edge it points along the
+edge's direction $\delta_k$, whose mechanism (the one-sided mechanism
+of Sect.~\ref{sec:lateral} for $\delta_k$) moves the soil.  At a corner
+it is a mix,
+$\mathbf{v} = a_1\mathbf{n}(\delta_1) + a_2\mathbf{n}(\delta_2)$ with
+$a_1, a_2 \ge 0$, and the soil moves as the same mix of the two
+mechanisms; that mix is what makes the corner cheaper than the
+direction's own mechanism (Sect.~\ref{sec:envelope}).  Over the steps
+since the last update the pipe has moved the path
+$s_k = \sum a_k\Delta t$ along mechanism $k$.  The update is that of
+Sect.~\ref{sec:lateral} with these paths: the free surface in front
+rises by $\sum_k s_k\,(v_\text{up} + v_x\tan\alpha)_k$, the soil the
+pipe moves into is removed, and the rise is scaled so that the soil
+volume is conserved.  The pipe is put where the time steps have taken
+it, and $\alpha$ is refitted over the passive wedge of the mechanism
+with the longest path.  With a single mechanism and
+$\Delta s = \Delta u/\cos\beta$ this is the step of the quasi-static
+push (\texttt{advance}).
+
+\textbf{Lift-off and landing.}  Directions with $\mathcal{D} = 0$,
+where the pipe moves away from all the soil it touches, move no soil.
+When the pipe rises it leaves the trench floor behind it, and the
+contact starts at the invert; the gap behind is a fraction of a
+millimetre.  $\Delta s$ must be small compared with it, so that the
+pipe lands in the gap rather than sinks through it; this is checked by
+halving $\Delta s$.  If the pipe has no contact at all, the envelope is
+the origin: the soil force is zero, and the pipe moves freely.  It is
+then checked in every time step whether the pipe touches the surface
+again, and the geometry is updated at once when it does.
+
+\textbf{Forward only.}  The backward half-planes come from the mirror
+image (Sect.~\ref{sec:envelope}), and so does the soil flow of their
+mechanisms.  A motion that needs a backward mechanism, with soil
+contact, would need that flow; that is step~4 of the plan.  Such a
+motion is $\dot u < 0$ (the load has fallen below the holding force
+$H_\text{min}$), or straight down into a symmetric hollow, which is a
+mix of a forward and a backward mechanism.  The run stops before it.
+
+\textbf{Slow load.}  When the load changes slowly compared with $T_n$,
+the inertia terms vanish: $\mathbf{F} = (F_x, W)$ lies on the forward
+edge at $V = W$, which is the push force of the quasi-static run, and
+the pipe follows the quasi-static push, now force controlled.  The
+energy balance (\ref{eq:energy}) holds step by step also when the
+envelope changes, since each step uses one envelope.
 
 % ====================================================================
 \section{Plotting}
