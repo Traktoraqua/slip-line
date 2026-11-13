@@ -1,6 +1,6 @@
 # Plan: dynamisk modell for røret
 
-Status 10.11.2026. Planen innfører én ting av gangen. Hvert steg er ferdig først når dokumentasjonen er oppdatert og kontrollene er kjørt. Ingen steg startes før forrige steg er godkjent.
+Status 13.11.2026. Planen innfører én ting av gangen. Hvert steg er ferdig først når dokumentasjonen er oppdatert og kontrollene er kjørt. Ingen steg startes før forrige steg er godkjent.
 
 ## Status
 
@@ -66,7 +66,7 @@ Dokumentasjonen kommer først og er en del av steget, ikke noe som gjøres til s
 - **Jordmotstand.** Den kommer fra flyteflaten til den sideveis mekanismen (øvre grense), med normalitet: bevegelsen står vinkelrett på flyteflaten. Der flyteflaten har et hjørne, kan røret bevege seg i alle retninger mellom normalene på hver side.
 - **Q fra steg 1 brukes ikke.** Når røret har flyttet seg sideveis, åpnes kontakten bak røret. Ved V = W gir Q dessuten samme svar som flyteflaten uten Q.
   - Svakhet: flyteflaten er for sterk når røret beveger seg bratt nedover. Ved start tåler den V = 3,27 kN/m ved H = 0, mot Q = 2,80 kN/m. Dette har bare betydning når røret lander etter å ha lettet.
-- **Friksjonsmodell.** Lukket form med jevn friksjon (`PipeLateralClosedForm`) kommer først, fordi den er rask: én flyteflate med 720 retninger tar ~20 ms. Friksjon som snur kan komme senere.
+- **Friksjonsmodell.** Lukket form med jevn friksjon (`PipeLateralClosedForm`) kommer først, fordi den er rask: én flyteflate med 722 retninger tar 11–14 ms (målt). Friksjon som snur kan komme senere.
 - **Tidsintegrasjon.** Implisitt steg med projeksjon på flyteflaten, som «closest point projection» i plastisitetsteori.
   - Prøvekraften er F* = F_ytre + M·v/Δt.
   - Ligger F* innenfor flyteflaten, står røret stille.
