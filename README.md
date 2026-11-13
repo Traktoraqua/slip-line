@@ -12,6 +12,7 @@ Slip-line (method of characteristics) analysis of the bearing capacity of founda
 - A lateral push of the pipe while it is free to move vertically (upper bound), followed by a push back; with uniform interface friction it also runs on closed-form formulas, without a net
 - The yield envelope (H–V) of the soil around the pipe for every direction of motion, the first step of a dynamic model (`PLAN_DYNAMIKK.md`, in Norwegian)
 - The pipe with its mass on a fixed yield envelope, loaded in time (implicit steps with a closest-point projection), the second step of the dynamic model
+- The pipe loaded in time with the geometry (berm, trench, contact) following the motion forward, the third step
 - Plots of the slip-line fields
 
 The theory and API are described in `manual.tex` (LaTeX). `pipe_formulas.tex` (in Norwegian) gives closed-form horizontal and vertical collapse loads for a partly embedded pipe with a sloping surface beside it, how far the plastic zone reaches along the surface, its area (the soil volume in the mechanism), how fast the surface moves there, and the dissipation of the lateral mechanism.
@@ -36,19 +37,21 @@ uv run run_penetration_closed_form.py   # the same with closed-form formulas, ~1
 uv run animate_penetration.py           # animation: pipe pushed to P/R = 0.5, with V against P
 uv run run_lateral.py                   # sink, push 0.2 m sideways, then 40 mm back
 uv run run_lateral_closed_form.py       # the same with closed forms and uniform friction, ~1 s
+uv run run_dynamic.py                   # pushed by a load in time, slow and fast, ~4 s
 ```
 
-The yield envelope along the lateral push, and the time step of the dynamic model with its check against Newmark's sliding block, as figures in `plots/`:
+The yield envelope along the lateral push, the time step of the dynamic model with its check against Newmark's sliding block, and the pipe pushed by a load in time, as figures in `plots/`:
 
 ```
 uv run plot_yield_envelope.py
 uv run plot_projection.py
+uv run plot_dynamic.py
 ```
 
 The checks live in `tests/` as pytest tests (pytest is a dev dependency; `pyproject.toml` limits it to `tests/`). Each file also runs as a script:
 
 ```
-uv run pytest                        # all checks, ~1 s
+uv run pytest                        # all checks, ~12 s
 uv run tests/test_dynamics.py
 ```
 
@@ -82,7 +85,7 @@ print(solver.solve())  # ≈ π + 2
 - `slip_line/penetration.py` – pipe sinking under its own weight (`PipePenetration`)
 - `slip_line/lateral.py` – lateral push of the pipe (`PipeLateral`, `PipeLateralClosedForm`)
 - `slip_line/envelope.py` – yield envelope of the soil around the pipe (`YieldEnvelope`)
-- `slip_line/dynamics.py` – the pipe with mass on a fixed yield envelope (`PipeDynamics`, `pipe_mass`)
+- `slip_line/dynamics.py` – the pipe with mass loaded in time, on a fixed yield envelope (`PipeDynamics`, `pipe_mass`) and with the geometry following the motion (`PipeMotion`)
 - `slip_line/plot.py` – plotting
 
 Conventions: y points downward (depth), compression is positive.

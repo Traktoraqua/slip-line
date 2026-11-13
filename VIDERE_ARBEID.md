@@ -80,7 +80,7 @@ Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i
   - Den kraftstyrte sammenligningen med Fx = 0,3·(1 − cos πt) brukte samme søk. Toppen der (0,676 kN/m ved 7,8 mm) er derfor for høy.
   - Når røret løfter seg, slipper det sporet bak seg, og kontakten begynner ved rørbunnen. Da er det billigst å dykke ned i glipa bak røret (δ = 14°), selv om glipa er brøkdeler av en millimeter. Fra u = 30 mm når flyteflaten ikke lenger V = W (sjekket).
   - Med cᵤ = 1 kPa finner søket det laveste minimumet til kontakten bak forsvinner ved u ≈ 190 mm, og H er høyst 2,7 % for høy etter det (sjekket).
-- **Forslag:** Ikke rett søket nå. Den dynamiske modellen bruker hele flyteflaten og finner det laveste minimumet av seg selv. Geometrien må da følge bevegelsen tett, og røret må kunne lande i glipa bak seg (steg 3). Vil man ha den kvasistatiske kjøringen riktig, kan søket skanne alle β i hvert steg (ca. 2 ms med lukket form).
+- **Forslag:** Ikke rett søket nå. Den dynamiske modellen bruker hele flyteflaten og finner det laveste minimumet av seg selv. Det er bekreftet i steg 3 (`PipeMotion`): med cᵤ = 5 kPa løfter røret seg fra u ≈ 1,3 mm. Røret må kunne lande i glipa bak seg, og det krever den speilede rammen (steg 4); til da stopper kjøringen ved u ≈ 1,5 mm. Vil man ha den kvasistatiske kjøringen riktig, kan søket skanne alle β i hvert steg (ca. 2 ms med lukket form).
 
 ### 1.11 Allerede sjekket og i orden
 - **Mohr-Coulomb-skiva** nærmer seg Tresca-skiva når φ → 0: 0,3–0,4 % avvik ved φ = 0,1° og ~4 % ved 1° (sjekket for p = 0,1–0,45 og r = 0 og 0,5).

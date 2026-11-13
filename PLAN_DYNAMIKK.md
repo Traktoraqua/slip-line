@@ -8,8 +8,8 @@ Status 13.11.2026. Planen innfører én ting av gangen. Hvert steg er ferdig fø
 |---|---|---|
 | 0 | Plan, notasjon og valg | ferdig |
 | 1 | Flyteflaten (H–V) for én tilstand | ferdig |
-| 2 | Bevegelseslikningen på fast flyteflate | ferdig, venter på godkjenning |
-| 3 | Geometrien følger bevegelsen (forover) | ikke startet |
+| 2 | Bevegelseslikningen på fast flyteflate | ferdig |
+| 3 | Geometrien følger bevegelsen (forover) | ferdig, venter på godkjenning |
 | 4 | Fram og tilbake | ikke startet |
 | 5 | Harmonisk bølgelast og løft | ikke startet |
 | 6 | Jordas treghet | ikke startet |
@@ -127,7 +127,7 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
 - **Data:** M. Som eksempel brukes 1900 kg/m (1090 kg/m fra W, pluss C_a = 1).
 - **Resultat (13.11.2026):**
   - `slip_line/dynamics.py` med `PipeDynamics` (`step`, `run`, `energy`), `closest_point`, `DynamicState` og `pipe_mass`. Ett tidssteg tar ~10 µs på flyteflaten til røret (32 hjørner).
-  - Kontrollene ligger i `tests/test_dynamics.py` (12 tester, 0,2 s). pytest er lagt inn: `uv run pytest` kjører alle 20 testene på ~1 s.
+  - Kontrollene ligger i `tests/test_dynamics.py` (12 tester, 0,2 s). pytest er lagt inn: `uv run pytest` kjørte da alle 20 testene på ~1 s.
   - Manualen: underseksjon 8.4 «Equations of motion» med teori, figur og kontroller, og 8.5 med API og eksempel. Figur `plots/projection.png` fra `plot_projection.py`. `README.md`, `CLAUDE.md` og `VIDERE_ARBEID.md` (3.1 delvis gjort) er oppdatert.
   - **Avvik fra planen:**
     - `pipe_mass(W, D, C_a=1)` er lagt til, så C_a kan endres senere. Massen er m = W/g + ρ_w·πD²/4 = 285 + 805 = 1090 kg/m: vekten i vann pluss oppdriften, med D = 1 m og sjøvann.
@@ -156,6 +156,20 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
 - **Dokumentasjon:**
   - Manualen: underseksjon om geometrien i tid, med figur av u(t), w(t) og lastens vei gjennom flyteflaten.
   - Nytt skript `run_dynamic.py`, beskrevet i `README.md` og `CLAUDE.md`.
+- **Resultat (13.11.2026):**
+  - `PipeLateral.move(state, du, dw, flow)` flytter røret og jorda for en vilkårlig bevegelse, også en blanding av to mekanismer i et hjørne av flyteflaten. `advance` er nå `move` langs tilstandens mekanisme, og `run_lateral_closed_form.py` og `plot_yield_envelope.py` gir nøyaktig samme utskrift som før.
+  - `PipeMotion` i `slip_line/dynamics.py` kjører tidsstegene fra steg 2 på flyteflaten til den aktuelle geometrien. Når røret har flyttet seg Δs (0,25 mm), flyttes jorda med mekanismene til de kantene farten har fulgt, og det lages en ny flyteflate. Uten kontakt er jordkraften null, og geometrien oppdateres med en gang røret treffer jorda igjen. Kjøringen stopper før en bevegelse som trenger en speilet mekanisme (`stop_reason = "backward"`).
+  - Kontrollene ligger i `tests/test_motion.py` (11 tester, ~10 s). `uv run pytest` kjører alle 32 på ~12 s.
+  - Manualen: 8.6 (teori), 8.7 (resultater, figur og kontroller) og 8.8 (API og eksempel). Figur `plots/dynamic_push.png` fra `plot_dynamic.py`, og nytt skript `run_dynamic.py` (~4 s). `README.md`, `CLAUDE.md` og `VIDERE_ARBEID.md` (1.10) er oppdatert.
+  - **Avvik fra planen:**
+    - Landingen i glipa bak røret med cᵤ = 5 kPa er flyttet til steg 4. Glipa er bare noen få µm, men V = W ligger da utenfor flyteflaten, og å synke tilbake ned i glipa er en blanding av en mekanisme forover og en speilet mekanisme bakover. Kjøringen stopper der, ved u = 1,5 mm.
+    - En landing rett ned i det symmetriske hullet etter at røret har lettet helt trenger også mekanismer på begge sider, og stopper derfor kjøringen. Jorda røret når ned i det siste tidssteget før det treffer, kuttes uten flyt, så volumet bevares ikke helt ved en landing.
+    - Testen av rask last antok at røret flytter seg kortere enn ved langsom last. Det stemte ikke (se funn), og testen sjekker nå forsinkelsen i stedet.
+  - **Funn:**
+    - Langsom last (stiger over 50 s) følger det kvasistatiske skyvet innen 1 % i H og 0,05 mm i w, og stopper ved u = 24,45 mm. Røret går i små rykk: etter hver Δs er den nye flyteflaten litt sterkere, og røret venter til lasten tar igjen. Når lasten faller, stopper kjøringen ved holdekraften H_min = 0,479 kN/m (u̇ < 0 trenger steg 4).
+    - Rask last (stiger over 1 s, T_n ≈ 2–3 s): røret begynner ved samme last, men massen gjør at det henger etter. Det har størst fart (42 mm/s) etter lasttoppen, bremses av jorda og stopper når lasten har falt til 0,18 kN/m. Det ender på u = 24,97 mm, 2 % lenger enn ved langsom last. V varierer fra 2,76 til 2,88 kN/m.
+    - Δs = 0,5, 0,25 og 0,125 mm gir u = 25,19, 24,97 og 24,84 mm (omtrent første orden). Halvert Δt endrer 0,01 mm.
+    - Med cᵤ = 5 kPa følger den dynamiske modellen det laveste minimumet: røret løfter seg fra u ≈ 1,3 mm (δ = −2°). Den kvasistatiske kjøringen fant ikke dette (`VIDERE_ARBEID.md` 1.10).
 
 ## Steg 4 – Fram og tilbake
 
@@ -167,6 +181,8 @@ Dette dekker også punkt 3.5 i `VIDERE_ARBEID.md`.
   - Symmetrisk last gir speilet svar.
   - Langsom last gir dagens skyv fram og tilbake (steg 3 i `run_lateral_closed_form.py`).
   - Når lasten faller, lander røret i glipa bak seg i stedet for å synke gjennom den. Med cᵤ = 1 kPa skjer det allerede ved Fx ≈ 0,47 kN/m etter 20 mm (se steg 3).
+  - Med cᵤ = 5 kPa slipper røret sålen bak seg når det løfter seg (fra u ≈ 1,5 mm), og synker så tilbake ned i glipa med en blanding av en mekanisme forover og en bakover (flyttet fra steg 3). Δs må være så liten at røret lander i glipa i stedet for å synke gjennom den. Sammenlign med `push_force` på flyteflaten.
+  - Landing rett ned i hullet etter at røret har lettet helt (begge sider).
   - Bermene bygges opp på begge sider.
 - **Dokumentasjon:**
   - Manualen: om vendinger, med figur av geometrien etter noen perioder.
