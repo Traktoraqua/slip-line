@@ -10,10 +10,12 @@ from functools import cache
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from slip_line.dynamics import PipeMotion, pipe_mass
+from slip_line.dynamics import DynamicState, PipeMotion, _Backward, pipe_mass
+from slip_line.envelope import YieldEnvelope
 from slip_line.lateral import PipeLateralClosedForm
 from slip_line.penetration import PipePenetrationClosedForm
 
@@ -110,6 +112,65 @@ def test_move_mix_conserves_volume():
     v0, v1 = np.trapezoid(s0.eta, lat.x), np.trapezoid(s1.eta, lat.x)
     assert abs(v1 - v0) < 1e-12
     assert np.max(s1.eta - s0.eta) > 0.0  # the berm has grown
+
+
+# ----------------------------------------------------------------------
+# Splitting the velocity on the edges (PipeMotion._split)
+# ----------------------------------------------------------------------
+
+
+def split_envelope():
+    """Synthetic envelope sampled like from_state (the forward half first):
+    edges at −90° (V ≥ 0, D = 0), −45°, 0°, 30° and 60° forward and their
+    mirror images backward.  The top corner lies between 60° (forward)
+    and 120° (backward)."""
+    half = np.radians([-90.0, -45.0, 0.0, 30.0, 60.0, 90.0])
+    fwd = [0.0, 0.5, 1.0, 1.2, 2.0, 3.0]
+    deltas = np.concatenate((half, np.pi - half[::-1]))
+    return YieldEnvelope.from_dissipation(deltas, fwd + fwd[::-1])
+
+
+def split(env, F, angle):
+    """_split at F for a unit velocity along angle (degrees): {direction
+    of the edge in degrees: speed along it}."""
+    v = np.array([np.cos(np.radians(angle)), np.sin(np.radians(angle))])
+    parts = PipeMotion._split(env, DynamicState(0.0, 0.0, 0.0, *v, *F), v)
+    return {round(float(np.degrees(env.deltas[j])), 6): a for j, a in parts}
+
+
+def corner(env, lo, hi):
+    """The vertex between the edges with directions lo and hi (degrees)."""
+    return next(
+        P for P in env.vertices if np.allclose(np.degrees(env.directions(P)), [lo, hi])
+    )
+
+
+def test_split_forward_corner():
+    """A velocity at 10° in the corner of the 0° and 30° edges is
+    b = sin 10°/sin 30° along 30° and a = cos 10° − b·cos 30° along 0°."""
+    env = split_envelope()
+    parts = split(env, corner(env, 0.0, 30.0), 10.0)
+    b = np.sin(np.radians(10.0)) / np.sin(np.radians(30.0))
+    a = np.cos(np.radians(10.0)) - b * np.cos(np.radians(30.0))
+    assert parts.keys() == {0.0, 30.0}
+    assert np.isclose(parts[0.0], a) and np.isclose(parts[30.0], b)
+
+
+def test_split_backward_corner():
+    """In the top corner a velocity at 90° needs the backward mechanism
+    (120°), so _split raises _Backward.  Along 60° it needs only the
+    forward one, although the solve gives the backward edge a speed of
+    round-off size."""
+    env = split_envelope()
+    top = corner(env, 60.0, 120.0)
+    with pytest.raises(_Backward):
+        split(env, top, 90.0)
+    assert split(env, top, 60.0).keys() == {60.0}
+
+
+def test_split_lift_off_moves_no_soil():
+    """On the edge V = 0 (D = 0, the pipe lifts off) no soil moves."""
+    assert split(split_envelope(), [0.0, 0.0], -90.0) == {}
 
 
 # ----------------------------------------------------------------------
@@ -241,6 +302,26 @@ def test_free_flight_and_landing():
     assert motion.stop_reason == "backward"
     assert motion.geometries[-1][2] is not None  # it touched the soil again
     assert abs(states[-1].u) < 1e-12
+
+
+def test_oblique_landing_stops():
+    """Lift 2W and Fx = 0.3 kN/m for 0.05 s (cu = 5 kPa): the pipe flies
+    forward and up, and lands moving forward and down.  That landing too
+    mixes in a mechanism of the mirror image, so every landing after a
+    full lift-off stops the run (step 4)."""
+    lat, s0 = start(5.0)
+    motion = PipeMotion(
+        lat,
+        s0,
+        M,
+        Fx=lambda t: 0.3 if t < 0.05 else 0.0,
+        F_L=lambda t: 2.0 * W if t < 0.05 else 0.0,
+    )
+    states = motion.run(2.0, 1e-3)
+    assert any(env is None for _, _, env in motion.geometries)
+    assert motion.stop_reason == "backward"
+    assert motion.geometries[-1][2] is not None
+    assert states[-1].u > 1e-3 and states[-1].u_dot > 0.0
 
 
 if __name__ == "__main__":

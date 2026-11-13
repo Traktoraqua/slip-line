@@ -1708,18 +1708,26 @@ where the pipe moves away from all the soil it touches, move no soil.
 When the pipe rises it leaves the trench floor behind it, and the
 contact starts at the invert; the gap behind is a few microns.  Sinking
 back into it mixes in a backward mechanism, so that landing comes with
-step~4 (Sect.~\ref{sec:motion_results}).  If the pipe has no contact at all, the envelope is
-the origin: the soil force is zero, and the pipe moves freely.  It is
-then checked in every time step whether the pipe touches the surface
-again, and the geometry is updated at once when it does.
+step~4 (Sect.~\ref{sec:motion_results}).  If the pipe has no contact
+at all, the envelope is the origin: the soil force is zero, and the
+pipe moves freely.  It is then checked in every time step whether the
+pipe touches the surface again, and the geometry is updated at once
+when it does.  In every landing tried so far, straight down or
+oblique, the first step after the touch mixes in a backward mechanism,
+so a landing after a full lift-off stops the run: for now the pipe can
+lift off and touch down, but not go on (step~4).
 
 \textbf{Forward only.}  The backward half-planes come from the mirror
 image (Sect.~\ref{sec:envelope}), and so does the soil flow of their
 mechanisms.  A motion that needs a backward mechanism, with soil
 contact, would need that flow; that is step~4 of the plan.  Such a
-motion is $\dot u < 0$ (the load has fallen below the holding force
-$H_\text{min}$), or straight down into a symmetric hollow, which is a
-mix of a forward and a backward mechanism.  The run stops before it.
+motion is $\dot u < 0$ with soil contact (the load has fallen below the
+holding force $H_\text{min}$), sinking back into the gap behind a
+rising pipe, or a landing after a full lift-off; the last two mix a
+forward and a backward mechanism.  A velocity along an edge of
+round-off size ($10^{-9}$ of the speed) does not count.  Motion without
+soil contact, also backward, does not stop the run.  The run stops
+before such a step.
 
 \textbf{Slow load.}  When the load changes slowly compared with $T_n$,
 the inertia terms vanish: $\mathbf{F} = (F_x, W)$ lies on the forward
@@ -1785,7 +1793,7 @@ would sink back into the gap, which mixes a forward and a backward
 mechanism.  The run stops at $u = 1.53$\,mm.  The landing in the gap
 needs the mirror image, step~4.
 
-\textbf{Checks} (\texttt{tests/test\_motion.py}, about 10\,s):
+\textbf{Checks} (\texttt{tests/test\_motion.py}, 15 tests, about 10\,s):
 \begin{itemize}
   \item \texttt{move()} with the state's mechanism gives exactly the
     \texttt{advance()} of Sect.~\ref{sec:lateral} (and
@@ -1810,9 +1818,15 @@ needs the mirror image, step~4.
     $\Delta s$;
   \item a lift of $2W$ for 0.05\,s: no soil force while the pipe is in
     the air; it lands straight down in its own hollow, which needs the
-    mechanisms on both sides, so the run stops there.  The soil the
-    pipe reaches into in its last time step before it touches is cut
-    without flow, so the volume is not kept at a landing.
+    mechanisms on both sides, so the run stops there.  With
+    $F_x = 0.3$\,kN/m during the lift it lands moving forward and down,
+    and that landing stops the run too.  The soil the pipe reaches into
+    in its last time step before it touches is cut without flow, so the
+    volume is not kept at a landing;
+  \item the split of the velocity on a synthetic envelope: the exact
+    speeds along the two edges of a forward corner, a stop where a
+    backward edge is needed (but not for a backward speed of round-off
+    size), and no soil flow on the lift-off edge.
 \end{itemize}
 
 \subsection{API: the pipe in time}

@@ -245,7 +245,8 @@ class PipeMotion:
             self._update(geo, states[-1], paths)
         return states
 
-    def _split(self, env, s: DynamicState, v: np.ndarray) -> list[tuple[int, float]]:
+    @staticmethod
+    def _split(env, s: DynamicState, v: np.ndarray) -> list[tuple[int, float]]:
         """The velocity v at the soil force of s as speeds a_k ≥ 0 along the
         directions of motion there: one edge, or the two edges of a corner.
         Returns (index of the sampled direction, a_k) for the edges whose
@@ -253,18 +254,18 @@ class PipeMotion:
         mechanism of the mirror image."""
         if env is None:
             return []
-        F = np.array([s.H, s.V])
+        F, speed = np.array([s.H, s.V]), float(np.hypot(*v))
         lo, hi = env.directions(F, tol=1e-7)
         if hi - lo < 1e-9:
-            dirs, speeds = [lo], [float(np.hypot(*v))]
+            dirs, speeds = [lo], [speed]
         else:
             A = np.array([[np.cos(lo), np.cos(hi)], [np.sin(lo), np.sin(hi)]])
             dirs, speeds = [lo, hi], np.linalg.solve(A, v)
         out = []
         for d, a in zip(dirs, speeds):
-            j = self._sample(env, d, F)
-            if a <= 0.0 or env.D[j] <= 0.0:
-                continue  # no motion along it, or no soil (lift-off)
+            j = PipeMotion._sample(env, d, F)
+            if a <= 1e-9 * speed or env.D[j] <= 0.0:
+                continue  # no motion along it (round-off), or no soil
             if j >= len(env.deltas) // 2:
                 raise _Backward
             out.append((j, float(a)))

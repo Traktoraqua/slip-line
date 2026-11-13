@@ -159,11 +159,11 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
 - **Resultat (13.11.2026):**
   - `PipeLateral.move(state, du, dw, flow)` flytter røret og jorda for en vilkårlig bevegelse, også en blanding av to mekanismer i et hjørne av flyteflaten. `advance` er nå `move` langs tilstandens mekanisme, og `run_lateral_closed_form.py` og `plot_yield_envelope.py` gir nøyaktig samme utskrift som før.
   - `PipeMotion` i `slip_line/dynamics.py` kjører tidsstegene fra steg 2 på flyteflaten til den aktuelle geometrien. Når røret har flyttet seg Δs (0,25 mm), flyttes jorda med mekanismene til de kantene farten har fulgt, og det lages en ny flyteflate. Uten kontakt er jordkraften null, og geometrien oppdateres med en gang røret treffer jorda igjen. Kjøringen stopper før en bevegelse som trenger en speilet mekanisme (`stop_reason = "backward"`).
-  - Kontrollene ligger i `tests/test_motion.py` (11 tester, ~10 s). `uv run pytest` kjører alle 32 på ~12 s.
+  - Kontrollene ligger i `tests/test_motion.py` (15 tester, ~10 s). `uv run pytest` kjører alle 36 på ~12 s.
   - Manualen: 8.6 (teori), 8.7 (resultater, figur og kontroller) og 8.8 (API og eksempel). Figur `plots/dynamic_push.png` fra `plot_dynamic.py`, og nytt skript `run_dynamic.py` (~4 s). `README.md`, `CLAUDE.md` og `VIDERE_ARBEID.md` (1.10) er oppdatert.
   - **Avvik fra planen:**
     - Landingen i glipa bak røret med cᵤ = 5 kPa er flyttet til steg 4. Glipa er bare noen få µm, men V = W ligger da utenfor flyteflaten, og å synke tilbake ned i glipa er en blanding av en mekanisme forover og en speilet mekanisme bakover. Kjøringen stopper der, ved u = 1,5 mm.
-    - En landing rett ned i det symmetriske hullet etter at røret har lettet helt trenger også mekanismer på begge sider, og stopper derfor kjøringen. Jorda røret når ned i det siste tidssteget før det treffer, kuttes uten flyt, så volumet bevares ikke helt ved en landing.
+    - Alle landinger etter at røret har lettet helt stopper kjøringen, også de skrå: i alle som er prøvd, blander det første steget etter at røret treffer jorda inn en speilet mekanisme. «Røret kan lette og lande igjen» betyr derfor foreløpig at røret letter, treffer jorda og stopper. Jorda røret når ned i det siste tidssteget før det treffer, kuttes uten flyt, så volumet bevares ikke helt ved en landing.
     - Testen av rask last antok at røret flytter seg kortere enn ved langsom last. Det stemte ikke (se funn), og testen sjekker nå forsinkelsen i stedet.
   - **Funn:**
     - Langsom last (stiger over 50 s) følger det kvasistatiske skyvet innen 1 % i H og 0,05 mm i w, og stopper ved u = 24,45 mm. Røret går i små rykk: etter hver Δs er den nye flyteflaten litt sterkere, og røret venter til lasten tar igjen. Når lasten faller, stopper kjøringen ved holdekraften H_min = 0,479 kN/m (u̇ < 0 trenger steg 4).
@@ -182,7 +182,7 @@ Dette dekker også punkt 3.5 i `VIDERE_ARBEID.md`.
   - Langsom last gir dagens skyv fram og tilbake (steg 3 i `run_lateral_closed_form.py`).
   - Når lasten faller, lander røret i glipa bak seg i stedet for å synke gjennom den. Med cᵤ = 1 kPa skjer det allerede ved Fx ≈ 0,47 kN/m etter 20 mm (se steg 3).
   - Med cᵤ = 5 kPa slipper røret sålen bak seg når det løfter seg (fra u ≈ 1,5 mm), og synker så tilbake ned i glipa med en blanding av en mekanisme forover og en bakover (flyttet fra steg 3). Δs må være så liten at røret lander i glipa i stedet for å synke gjennom den. Sammenlign med `push_force` på flyteflaten.
-  - Landing rett ned i hullet etter at røret har lettet helt (begge sider).
+  - Landing etter at røret har lettet helt, rett ned og skrått (flyttet fra steg 3).
   - Bermene bygges opp på begge sider.
 - **Dokumentasjon:**
   - Manualen: om vendinger, med figur av geometrien etter noen perioder.
