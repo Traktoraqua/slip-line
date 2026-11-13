@@ -124,9 +124,10 @@ Four further modules build on the Tresca nets:
   \item[\texttt{envelope.py}] The $H$--$V$ yield envelope of the soil
         for one state of the push, the first step of a dynamic model
         (\texttt{YieldEnvelope}, Sect.~\ref{sec:dynamic}).
-  \item[\texttt{dynamics.py}] The pipe with its mass on a fixed yield
-        envelope, loaded in time (\texttt{PipeDynamics},
-        Sect.~\ref{sec:motion}).
+  \item[\texttt{dynamics.py}] The pipe with its mass, loaded in time,
+        on a fixed yield envelope (\texttt{PipeDynamics},
+        Sect.~\ref{sec:motion}) and with the geometry following the
+        motion (\texttt{PipeMotion}, Sect.~\ref{sec:geometry_time}).
 \end{description}
 
 \subsection{Sign conventions and coordinate system}
@@ -272,6 +273,7 @@ on the first run:
 uv run main.py            # interactive: strip footing or disk (Tresca)
 uv run run_penetration.py # pipe sinking under its own weight
 uv run run_lateral.py     # pipe sinking, pushed sideways and back
+uv run run_dynamic.py     # pipe pushed by a load in time
 \end{lstlisting}
 
 Scripts in the project root import the package directly
@@ -284,9 +286,10 @@ development dependency, and \texttt{pyproject.toml} limits it to
 \texttt{ok} per test:
 
 \begin{lstlisting}[language=bash,numbers=none]
-uv run pytest                      # all checks, about 1 s
+uv run pytest                      # all checks, about 12 s
 uv run tests/test_yield_envelope.py
 uv run tests/test_dynamics.py
+uv run tests/test_motion.py
 \end{lstlisting}
 
 % ====================================================================
@@ -1703,10 +1706,9 @@ push (\texttt{advance}).
 \textbf{Lift-off and landing.}  Directions with $\mathcal{D} = 0$,
 where the pipe moves away from all the soil it touches, move no soil.
 When the pipe rises it leaves the trench floor behind it, and the
-contact starts at the invert; the gap behind is a fraction of a
-millimetre.  $\Delta s$ must be small compared with it, so that the
-pipe lands in the gap rather than sinks through it; this is checked by
-halving $\Delta s$.  If the pipe has no contact at all, the envelope is
+contact starts at the invert; the gap behind is a few microns.  Sinking
+back into it mixes in a backward mechanism, so that landing comes with
+step~4 (Sect.~\ref{sec:motion_results}).  If the pipe has no contact at all, the envelope is
 the origin: the soil force is zero, and the pipe moves freely.  It is
 then checked in every time step whether the pipe touches the surface
 again, and the geometry is updated at once when it does.
@@ -1725,6 +1727,174 @@ edge at $V = W$, which is the push force of the quasi-static run, and
 the pipe follows the quasi-static push, now force controlled.  The
 energy balance (\ref{eq:energy}) holds step by step also when the
 envelope changes, since each step uses one envelope.
+
+\subsection{Results: the pipe in time}
+\label{sec:motion_results}
+
+Fig.~\ref{fig:dynamic_push} shows the pipe of
+Sect.~\ref{sec:envelope_results} with $c_u = 1$\,kPa
+(\texttt{plot\_dynamic.py}; \texttt{run\_dynamic.py} prints the same
+runs).  $M = 1895$\,kg/m ($C_a = 1$), $\Delta s = 0.25$\,mm, and the
+load $F_x = 0.3\,(1 - \cos(\pi t/T_\text{rise}))$\,kN/m rises to
+0.6\,kN/m at $T_\text{rise}$ and falls again.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{dynamic_push.png}
+\caption{The pipe pushed by a load in time with the geometry following
+the motion, $c_u = 1$\,kPa, $r = 0.8$, $W = 2.8$\,kN/m.  (a) The load
+and $u$, $w$ for a slow ($T_\text{rise} = 50$\,s) and a fast
+(1\,s) rise.  (b) The soil force on its way through the envelopes of
+the fast run at four displacements; the inset enlarges the region
+around $V = W$.}
+\label{fig:dynamic_push}
+\end{figure}
+
+\textbf{Slow load} ($T_\text{rise} = 50$\,s, much longer than
+$T_n \approx 2$--3\,s).  The pipe rests until the load reaches the push
+force, 0.36\,kN/m, and then moves with it: the force lies on the
+forward edge at $V = W$ ($V$ stays within 2.798--2.802\,kN/m), and
+$F_x$ is the quasi-static push force at the same $u$, within 1\,\%.  It
+stops at the peak, at $u = 24.45$\,mm and $w = 5.16$\,mm.  It moves in
+small jerks: after each $\Delta s$ the new envelope is a little
+stronger, and the pipe waits for the load to catch up; the jerks shrink
+with $\Delta s$.  When the load falls, the pipe rests until $F_x$ has
+fallen to the holding force $H_\text{min} = 0.479$\,kN/m, where it
+would slide back, and the run stops there (step~4).
+
+\textbf{Fast load} ($T_\text{rise} = 1$\,s).  The pipe starts at the
+same load, but the excess force must first accelerate its mass, so the
+motion lags the load.  It is fastest, 42\,mm/s, at $t = 1.25$\,s, after
+the load has peaked, and it moves on while the load falls, braked by
+the soil ($H > F_x$), until it stops at $t = 1.63$\,s with
+$F_x = 0.18$\,kN/m.  It ends at $u = 24.97$\,mm, 2\,\% beyond the slow
+run: here the mass delays the motion more than it changes its size.
+The vertical inertia moves the force off $V = W$, from 2.76 to
+2.88\,kN/m (Fig.~\ref{fig:dynamic_push}b).  Then $F_x < H_\text{min}$,
+and the run stops.  Halving $\Delta s$ from 0.5 to 0.25 and 0.125\,mm
+gives $u = 25.19$, 24.97 and 24.84\,mm (about first order); halving
+$\Delta t$ from 2 to 1\,ms changes it by 0.01\,mm.
+
+\textbf{Light pipe} ($c_u = 5$\,kPa, \texttt{run\_dynamic.py}, case
+3).  Unlike the quasi-static run, the pipe follows the lowest minimum
+(Sect.~\ref{sec:envelope_results}): from $u \approx 1.3$\,mm it rises at
+$\delta = -2^\circ$.  Rising, it leaves the trench floor behind it by a
+few microns, and the contact starts at the invert.  $V = W$ then lies
+outside the envelope: no horizontal force holds the pipe up, and it
+would sink back into the gap, which mixes a forward and a backward
+mechanism.  The run stops at $u = 1.53$\,mm.  The landing in the gap
+needs the mirror image, step~4.
+
+\textbf{Checks} (\texttt{tests/test\_motion.py}, about 10\,s):
+\begin{itemize}
+  \item \texttt{move()} with the state's mechanism gives exactly the
+    \texttt{advance()} of Sect.~\ref{sec:lateral} (and
+    \texttt{run\_lateral\_closed\_form.py} prints the same as before);
+    a motion away from the soil leaves the surface as it was; a mix of
+    two mechanisms conserves the soil volume;
+  \item the slow load: $F_x$ within 1\,\% of the quasi-static push
+    force at the same $u$, $w(u)$ within 0.05\,mm of the quasi-static
+    path, and $u$ at the peak within 0.5\,mm;
+  \item the falling load: the run stops where $F_x = H_\text{min}$
+    (within 0.01\,kN/m), and the pipe never moves back;
+  \item the soil volume of every geometry equals that at the start
+    (within $10^{-12}$\,m$^2$/m);
+  \item the energy balance (\ref{eq:energy}) to round-off while the
+    envelope changes;
+  \item the fast load: it starts at the same load, is fastest after the
+    peak, is braked by the soil at the end, and ends within 10\,\% of
+    the slow run; halving $\Delta s$ and $\Delta t$ changes $u$ less
+    each time, by less than 1\,\% at the finest;
+  \item $c_u = 5$\,kPa: the pipe rises, leaves the trench floor and
+    stops, at the same place (within $\Delta s$) with half the
+    $\Delta s$;
+  \item a lift of $2W$ for 0.05\,s: no soil force while the pipe is in
+    the air; it lands straight down in its own hollow, which needs the
+    mechanisms on both sides, so the run stops there.  The soil the
+    pipe reaches into in its last time step before it touches is cut
+    without flow, so the volume is not kept at a landing.
+\end{itemize}
+
+\subsection{API: the pipe in time}
+
+The fast load of Fig.~\ref{fig:dynamic_push}:
+\begin{lstlisting}
+import numpy as np
+
+from slip_line.dynamics import PipeMotion, pipe_mass
+from slip_line.lateral import PipeLateralClosedForm
+from slip_line.penetration import PipePenetrationClosedForm
+
+W, D = 2.8, 1.0
+sim = PipePenetrationClosedForm(D=D, cu=1.0, r=0.8, W=W)
+s1 = sim.run()[-1]
+lat, start = PipeLateralClosedForm.after_penetration(sim, s1)
+
+
+def Fx(t):  # rises to 0.6 kN/m at t = 1 s, then falls
+    return 0.3 * (1.0 - np.cos(np.pi * t))
+
+
+M = pipe_mass(W, D)
+motion = PipeMotion(lat, start, M, Fx=Fx, ds=0.25e-3)
+states = motion.run(2.0, 2e-3)
+print(" t [s]     Fx      H      V  u [mm]  w [mm]")
+for s in states[250::50]:  # t = 0.5, 0.6, ... s
+    u, w = 1e3 * s.u, 1e3 * s.w
+    print(
+        f"{s.t:6.2f} {Fx(s.t):6.3f} {s.H:6.3f} {s.V:6.3f}"
+        f" {u:7.2f} {w:7.2f}"
+    )
+s = states[-1]
+print(f"stop: {motion.stop_reason} at t = {s.t:.3f} s")
+print(f"u = {1e3 * s.u:.2f} mm, w = {1e3 * s.w:.2f} mm")
+print(f"{len(motion.geometries)} envelopes")
+\end{lstlisting}
+
+Expected output:
+\begin{lstlisting}[numbers=none]
+ t [s]     Fx      H      V  u [mm]  w [mm]
+  0.50  0.300  0.300  2.800    0.00    0.00
+  0.60  0.393  0.362  2.793    0.00    0.00
+  0.70  0.476  0.367  2.774    0.19    0.05
+  0.80  0.543  0.385  2.764    0.94    0.22
+  0.90  0.585  0.403  2.766    2.50    0.58
+  1.00  0.600  0.431  2.763    5.01    1.14
+  1.10  0.585  0.466  2.775    8.38    1.87
+  1.20  0.543  0.499  2.794   12.36    2.72
+  1.30  0.476  0.534  2.812   16.56    3.58
+  1.40  0.393  0.561  2.834   20.43    4.37
+  1.50  0.300  0.581  2.857   23.41    4.98
+  1.60  0.207  0.590  2.878   24.89    5.28
+stop: backward at t = 1.628 s
+u = 24.97 mm, w = 5.29 mm
+93 envelopes
+\end{lstlisting}
+
+\begin{itemize}
+  \item \texttt{PipeMotion(lat, geo, M, Fx=None, F\_L=None, ds=0.25e-3,
+    n=720)}: the pipe of the \texttt{PipeLateral} model \texttt{lat}
+    (uniform friction, e.g.\ \texttt{PipeLateralClosedForm}) from the
+    state \texttt{geo}, with masses \texttt{M} (kg/m) and loads as in
+    \texttt{PipeDynamics}; a new envelope (\texttt{n} directions) every
+    path length \texttt{ds}.  \texttt{run(t\_end, dt)} returns the
+    \texttt{DynamicState}s from rest at $t = 0$, with $u$ and $w$ from
+    the start.  After a run, \texttt{geometries} lists
+    \texttt{(t, state, envelope)} at the start and at every update
+    (\texttt{None} without contact), and \texttt{stop\_reason} is
+    \texttt{"backward"} if the run stopped before a motion that needs
+    the mirror image, else \texttt{None}.  \texttt{dyn} is the
+    \texttt{PipeDynamics} it steps with (\texttt{dyn.Fx},
+    \texttt{dyn.energy(states)}), and \texttt{envelope(state)} the
+    envelope of a state;
+  \item \texttt{PipeLateral.move(state, du, dw, flow)}: the pipe moved
+    by $(\Delta u, \Delta w)$ with the soil flowing with the mechanisms
+    in \texttt{flow}, a list of \texttt{(field, ds)}: a velocity field
+    from \texttt{field()} and the path along its direction (empty: no
+    soil flow).  \texttt{advance(state, du)} is \texttt{move} along the
+    state's mechanism;
+  \item \texttt{PipeDynamics(None, ...)}: no contact, zero soil force.
+\end{itemize}
 
 % ====================================================================
 \section{Plotting}
@@ -2096,7 +2266,7 @@ File & Contents \\
 \texttt{slip\_line/penetration.py}      & \texttt{PipePenetration}: pipe sinking under its weight \\
 \texttt{slip\_line/lateral.py}          & \texttt{PipeLateral}: lateral push and push back \\
 \texttt{slip\_line/envelope.py}         & \texttt{YieldEnvelope}: H--V yield envelope \\
-\texttt{slip\_line/dynamics.py}         & \texttt{PipeDynamics}: motion on a fixed envelope \\
+\texttt{slip\_line/dynamics.py}         & \texttt{PipeDynamics}, \texttt{PipeMotion}: the pipe in time \\
 \texttt{slip\_line/plot.py}             & Built-in figure helpers \\
 \midrule
 \texttt{main.py}                       & Interactive program (Tresca strip or disk) \\
@@ -2105,8 +2275,10 @@ File & Contents \\
 \texttt{animate\_penetration.py}        & Animation: pipe pushed to $P/R = 0.5$ \\
 \texttt{run\_lateral.py}               & Pipe sinking, lateral push and push back \\
 \texttt{run\_lateral\_closed\_form.py}   & The same, closed forms (uniform friction) \\
+\texttt{run\_dynamic.py}               & Pipe pushed by a load in time (3 runs) \\
 \texttt{plot\_yield\_envelope.py}       & Yield envelopes along the lateral push \\
 \texttt{plot\_projection.py}            & The time step and the sliding-block check \\
+\texttt{plot\_dynamic.py}               & The pipe in time, through the envelope \\
 \texttt{plot\_velocity\_strip.py}       & Velocity field figure — smooth strip \\
 \texttt{plot\_velocity\_disk.py}        & Velocity field figure — disk \\
 \texttt{plot\_mc\_gravity.py}           & Demo script — gravity parametric study \\
