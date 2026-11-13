@@ -11,6 +11,7 @@ Slip-line (method of characteristics) analysis of the bearing capacity of founda
 - A pipe sinking into the soil under its own weight, with heave of the surface beside it
 - A lateral push of the pipe while it is free to move vertically (upper bound), followed by a push back; with uniform interface friction it also runs on closed-form formulas, without a net
 - The yield envelope (H–V) of the soil around the pipe for every direction of motion, the first step of a dynamic model (`PLAN_DYNAMIKK.md`, in Norwegian)
+- The pipe with its mass on a fixed yield envelope, loaded in time (implicit steps with a closest-point projection), the second step of the dynamic model
 - Plots of the slip-line fields
 
 The theory and API are described in `manual.tex` (LaTeX). `pipe_formulas.tex` (in Norwegian) gives closed-form horizontal and vertical collapse loads for a partly embedded pipe with a sloping surface beside it, how far the plastic zone reaches along the surface, its area (the soil volume in the mechanism), how fast the surface moves there, and the dissipation of the lateral mechanism.
@@ -37,16 +38,18 @@ uv run run_lateral.py                   # sink, push 0.2 m sideways, then 40 mm 
 uv run run_lateral_closed_form.py       # the same with closed forms and uniform friction, ~1 s
 ```
 
-The yield envelope along the lateral push, as a figure in `plots/` and a table:
+The yield envelope along the lateral push, and the time step of the dynamic model with its check against Newmark's sliding block, as figures in `plots/`:
 
 ```
 uv run plot_yield_envelope.py
+uv run plot_projection.py
 ```
 
-Checks written as pytest tests live in `tests/`. pytest is not installed yet, so for now each file runs as a script:
+The checks live in `tests/` as pytest tests (pytest is a dev dependency; `pyproject.toml` limits it to `tests/`). Each file also runs as a script:
 
 ```
-uv run tests/test_yield_envelope.py
+uv run pytest                        # all checks, ~1 s
+uv run tests/test_dynamics.py
 ```
 
 `run_lateral.py` has a `REVERSING` switch at the top: `True` (default) makes the net carry the interface friction, reversing where the slip along the pipe changes sign; `False` lets the net angle be free.
@@ -79,6 +82,7 @@ print(solver.solve())  # ≈ π + 2
 - `slip_line/penetration.py` – pipe sinking under its own weight (`PipePenetration`)
 - `slip_line/lateral.py` – lateral push of the pipe (`PipeLateral`, `PipeLateralClosedForm`)
 - `slip_line/envelope.py` – yield envelope of the soil around the pipe (`YieldEnvelope`)
+- `slip_line/dynamics.py` – the pipe with mass on a fixed yield envelope (`PipeDynamics`, `pipe_mass`)
 - `slip_line/plot.py` – plotting
 
 Conventions: y points downward (depth), compression is positive.

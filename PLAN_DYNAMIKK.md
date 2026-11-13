@@ -7,8 +7,8 @@ Status 13.11.2026. Planen innfører én ting av gangen. Hvert steg er ferdig fø
 | Steg | Innhold | Status |
 |---|---|---|
 | 0 | Plan, notasjon og valg | ferdig |
-| 1 | Flyteflaten (H–V) for én tilstand | ferdig, venter på godkjenning |
-| 2 | Bevegelseslikningen på fast flyteflate | ikke startet |
+| 1 | Flyteflaten (H–V) for én tilstand | ferdig |
+| 2 | Bevegelseslikningen på fast flyteflate | ferdig, venter på godkjenning |
 | 3 | Geometrien følger bevegelsen (forover) | ikke startet |
 | 4 | Fram og tilbake | ikke startet |
 | 5 | Harmonisk bølgelast og løft | ikke startet |
@@ -125,6 +125,18 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
   - Manualen: underseksjon «Equations of motion», med likningene og projeksjonen forklart med en figur. API og eksempel.
   - Glideblokkformelen som kontroll.
 - **Data:** M. Som eksempel brukes 1900 kg/m (1090 kg/m fra W, pluss C_a = 1).
+- **Resultat (13.11.2026):**
+  - `slip_line/dynamics.py` med `PipeDynamics` (`step`, `run`, `energy`), `closest_point`, `DynamicState` og `pipe_mass`. Ett tidssteg tar ~10 µs på flyteflaten til røret (32 hjørner).
+  - Kontrollene ligger i `tests/test_dynamics.py` (8 tester, 0,2 s). pytest er lagt inn: `uv run pytest` kjører alle 16 testene på ~1 s.
+  - Manualen: underseksjon 8.4 «Equations of motion» med teori, figur og kontroller, og 8.5 med API og eksempel. Figur `plots/projection.png` fra `plot_projection.py`. `README.md`, `CLAUDE.md` og `VIDERE_ARBEID.md` (3.1 delvis gjort) er oppdatert.
+  - **Avvik fra planen:**
+    - `pipe_mass(W, D, C_a=1)` er lagt til, så C_a kan endres senere. Massen er m = W/g + ρ_w·πD²/4 = 285 + 805 = 1090 kg/m: vekten i vann pluss oppdriften, med D = 1 m og sjøvann.
+    - Energibalansen går opp eksakt når den numeriske dempingen i det implisitte steget regnes som et eget ledd. Det leddet halveres når Δt halveres.
+    - Figuren viser også glideblokken mot lukket form.
+  - **Funn:**
+    - Glideblokken treffer lukket form innen 1,5·10⁻⁶ med Δt = T/2000. Formelen per halvperiode gjelder for F₀/H₀ ≤ 1,862; over det snur blokken uten å stoppe.
+    - Feilen er av første orden midt i en glidning (0,7 % i u med Δt = T/2000), men mye mindre når blokken har stoppet.
+    - På den faste flyteflaten ved start (cᵤ = 5 kPa) flytter en last på 0,2 kN/m (T = 10 s) røret 58 mm fram og tilbake og 35 mm ned per periode. Det er langt utenfor der flyteflaten gjelder: skyvet er 0,398 kN/m allerede etter 4 mm. Tall for virkelige laster krever steg 3.
 
 ## Steg 3 – Geometrien følger bevegelsen (forover)
 
@@ -220,7 +232,7 @@ Dette dekker også punkt 3.5 i `VIDERE_ARBEID.md`.
 
 | Når | Hva | Forslag hvis ikke gitt |
 |---|---|---|
-| Steg 2 | Rørmasse m og C_a (horisontalt og vertikalt) | 1090 kg/m fra W, og C_a = 1. Det er verdien i fritt vann. Nær bunnen gir DNV-RP-F105 rundt 2,3 for et rør som ligger på bunnen (ikke kontrollert her), og mindre når røret er delvis gravd ned. |
+| Steg 2 | Rørmasse m og C_a (horisontalt og vertikalt) | 1090 kg/m fra W, og C_a = 1 (avklart 13.11.2026: greit for nå, C_a er en input i `pipe_mass`). C_a = 1 er verdien i fritt vann. Nær bunnen gir DNV-RP-F105 rundt 2,3 for et rør som ligger på bunnen (ikke kontrollert her), og mindre når røret er delvis gravd ned. |
 | Steg 2 | Ok å ta inn pytest (`uv add --dev pytest`) | ja (avklart 13.11.2026) |
 | Steg 5 | Bølgelast: F₀, T, strøm og løft | T = 10 s, F₀ rundt største motstand |
 | Steg 6 | ρ_sat | 1600 kg/m³ |

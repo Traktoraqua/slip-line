@@ -7,7 +7,7 @@ Den dynamiske modellen (to frihetsgrader, bølgelast) har en egen stegvis plan i
 ## Anbefalt rekkefølge
 
 1. **Rett `main.py`** (1.1 og 1.3). Den gir feil svar i dag, og retting er rask.
-2. **Lag en pytest-suite** (3.1), så resten kan endres trygt. Den første testfila finnes, og pytest legges inn i steg 2 i `PLAN_DYNAMIKK.md`.
+2. **Lag en pytest-suite** (3.1), så resten kan endres trygt. pytest er lagt inn, og `tests/` har kontrollene til flyteflaten og bevegelseslikningen; de eldre kontrollene mangler.
 3. **Gjør steg 1 konsistent med steg 2** (1.4 og 3.2). Det påvirker alle tallene fra rørsimuleringene.
 4. **Sammenlign med publiserte løsninger** (del 2).
 5. **Utvid med lettere rør, sykluser og egenvekt** (3.4–3.6).
@@ -117,7 +117,7 @@ Gjør dagens kontroller om til tester med `assert`:
 
 Hold de trege rørsimuleringene utenfor, eller merk dem som `slow`.
 
-Den første fila er `tests/test_yield_envelope.py` (steg 1 i `PLAN_DYNAMIKK.md`). Den kan kjøres som skript til pytest er lagt inn: `uv run tests/test_yield_envelope.py`. `test_*.py` i rota er skript og ikke tester, så pytest må bare lete i `tests/`.
+**Delvis gjort (13.11.2026):** pytest er lagt inn som utviklingsavhengighet (`uv add --dev pytest`), og `uv run pytest` kjører alt i `tests/` (~1 s). `pyproject.toml` begrenser pytest til `tests/`, siden `test_*.py` i rota er skript og ikke tester. Der ligger `tests/test_yield_envelope.py` (steg 1 i `PLAN_DYNAMIKK.md`) og `tests/test_dynamics.py` (steg 2). Kontrollene i lista over er ikke flyttet inn ennå.
 
 ### 3.2 Steg 1 som er konsistent med steg 2
 Regn synkningen med en øvre grense i stedet for spenningsløsningen. Mekanismen kan være en symmetrisk variant av den med friksjon som snur og en kile som henger fast under rørbunnen, eller den beste av ensidig og tosidig mekanisme. Da starter steg 2 i likevekt (H = 0). Sammenlign V(d) med Martin & White (2012).
