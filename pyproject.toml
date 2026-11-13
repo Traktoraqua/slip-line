@@ -6,3 +6,12 @@ dependencies = [
     "matplotlib>=3.11.2",
     "numpy>=2.5.4",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[tool.pytest.ini_options]
+# The test_*.py files in the repo root are scripts, not tests.
+testpaths = ["tests"]
