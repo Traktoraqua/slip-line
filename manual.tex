@@ -1119,9 +1119,10 @@ displacement controlled, with $V = W$.  The dynamic model treats the
 pipe as a rigid body with two degrees of freedom, $u$ (toward $+x$)
 and $w$ (down), on rigid-plastic soil, loaded by given forces in time
 (waves).  It is built one step at a time after the plan in
-\texttt{PLAN\_DYNAMIKK.md}.  So far it has the first step: the
+\texttt{PLAN\_DYNAMIKK.md}.  So far it has the first two steps: the
 resistance of the soil in every direction of motion, the yield
-envelope.
+envelope, and the motion of the pipe with its mass on a fixed envelope
+(Sect.~\ref{sec:motion}).
 
 \subsection{Yield envelope}
 \label{sec:envelope}
@@ -1386,6 +1387,139 @@ each edge, edge $k$ from vertex $k$ to $k+1$), and \texttt{deltas},
     point on the boundary (one value on an edge, two at a corner);
   \item \texttt{active()}: which sampled directions touch the envelope.
 \end{itemize}
+
+\subsection{Equations of motion}
+\label{sec:motion}
+
+The pipe is a rigid body with mass, and the soil is rigid-plastic: its
+force on the pipe is the reaction $-\mathbf{F}$, with
+$\mathbf{F} = (H, V)$ on the envelope $\mathcal{E}$ of
+Sect.~\ref{sec:envelope}.  In step~2 of the plan the geometry, and so
+$\mathcal{E}$, is held fixed.  With $\mathbf{x} = (u, w)$ the position
+of the pipe centre and $\mathbf{v} = \dot{\mathbf{x}}$,
+\begin{equation}
+  \mathbf{M}\dot{\mathbf{v}} = \mathbf{F}_\text{ext}(t) - \mathbf{F},
+  \qquad \mathbf{F} \in \mathcal{E},
+  \qquad \mathbf{v} \in N_\mathcal{E}(\mathbf{F}),
+  \label{eq:motion}
+\end{equation}
+where
+\begin{itemize}
+  \item $\mathbf{M} = \operatorname{diag}(m + m_{a,x},\; m + m_{a,z})$:
+    the mass $m$ of the pipe with contents and coating, plus the added
+    mass of the water;
+  \item $\mathbf{F}_\text{ext} = \bigl(F_x(t),\; W - F_L(t)\bigr)$: the
+    horizontal load, and the submerged weight less the lift ($F_L$
+    upward, $w$ downward);
+  \item $N_\mathcal{E}(\mathbf{F})$: the normal cone of $\mathcal{E}$
+    at $\mathbf{F}$, which is $\{\mathbf{0}\}$ inside, the outward
+    normal on an edge, and the directions between the normals of the
+    two edges at a corner.
+\end{itemize}
+The last condition is normality (Sect.~\ref{sec:envelope}): inside the
+envelope the pipe is at rest, and it moves only when the force is on
+the envelope, in the direction of the mechanism the force selects.
+The soil force is a reaction, not a function of the motion, so
+(\ref{eq:motion}) is a differential inclusion, as for a block with
+Coulomb friction.
+
+\textbf{Time step.}  Implicit (backward) Euler with the step $\Delta t$,
+\begin{equation}
+  \mathbf{M}\,\frac{\mathbf{v}_{k+1} - \mathbf{v}_k}{\Delta t}
+  = \mathbf{F}_\text{ext}(t_{k+1}) - \mathbf{F}_{k+1},
+  \qquad
+  \mathbf{x}_{k+1} = \mathbf{x}_k + \Delta t\,\mathbf{v}_{k+1},
+  \label{eq:euler}
+\end{equation}
+with $\mathbf{F}_{k+1} \in \mathcal{E}$ and
+$\mathbf{v}_{k+1} \in N_\mathcal{E}(\mathbf{F}_{k+1})$.  With the
+trial force
+\begin{equation}
+  \mathbf{F}^* = \mathbf{F}_\text{ext}(t_{k+1})
+  + \mathbf{M}\mathbf{v}_k/\Delta t,
+\end{equation}
+the force the soil would need to stop the pipe within the step, the
+first equation reads
+$\mathbf{v}_{k+1} = \Delta t\,\mathbf{M}^{-1}(\mathbf{F}^* - \mathbf{F}_{k+1})$.
+Normality then says that $\mathbf{M}^{-1}(\mathbf{F}^* - \mathbf{F}_{k+1})$
+lies in the normal cone at $\mathbf{F}_{k+1}$.  That is the optimality
+condition of
+\begin{equation}
+  \mathbf{F}_{k+1} = \arg\min_{\mathbf{F} \in \mathcal{E}}
+  \tfrac12 (\mathbf{F}^* - \mathbf{F})^\mathsf{T}
+  \mathbf{M}^{-1} (\mathbf{F}^* - \mathbf{F}),
+  \label{eq:projection}
+\end{equation}
+so the soil force is the point of $\mathcal{E}$ closest to
+$\mathbf{F}^*$, measured with $\mathbf{M}^{-1}$: the closest-point
+projection of plasticity theory, with the mass in place of the
+elastic stiffness.  $\mathcal{E}$ is convex, so the point is unique,
+and the step needs no iteration.  The same rule covers every case
+(Fig.~\ref{fig:projection}a):
+\begin{itemize}
+  \item $\mathbf{F}^*$ inside $\mathcal{E}$: $\mathbf{F} = \mathbf{F}^*$
+    and $\mathbf{v} = \mathbf{0}$.  The pipe is at rest, or stops
+    within the step.
+  \item The closest point on an edge: the pipe moves along the normal
+    of the edge.
+  \item The closest point at a corner: the pipe moves in a direction
+    between the normals of the two edges.
+  \item Lift larger than the weight: $\mathbf{F}^*$ lies below $V = 0$,
+    and with a small horizontal load its closest point is the origin.
+    The soil force is zero and the pipe lifts off.
+\end{itemize}
+In the code the forces are scaled by $\mathbf{M}^{-1/2}$, which makes
+the distance Euclidean and keeps the polygon convex; the closest point
+is then the nearest of the closest points on all edges.
+
+\textbf{Energy.}  Multiplying (\ref{eq:euler}) by
+$\Delta t\,\mathbf{v}_{k+1}$ and summing over the steps from rest gives
+exactly
+\begin{equation}
+  \underbrace{\sum_k \Delta t\,\mathbf{F}_\text{ext}(t_{k+1})\cdot\mathbf{v}_{k+1}}_{\text{work of the loads}}
+  = \underbrace{\sum_k \Delta t\,\mathbf{F}_{k+1}\cdot\mathbf{v}_{k+1}}_{\text{dissipation}}
+  + \underbrace{\tfrac12\,\mathbf{v}^\mathsf{T}\mathbf{M}\mathbf{v}}_{\text{kinetic energy}}
+  + \underbrace{\sum_k \tfrac12\,\Delta\mathbf{v}_k^\mathsf{T}\mathbf{M}\,\Delta\mathbf{v}_k}_{\text{numerical damping}},
+  \label{eq:energy}
+\end{equation}
+with $\Delta\mathbf{v}_k = \mathbf{v}_{k+1} - \mathbf{v}_k$.  The work
+of the loads includes that of the weight, $W\,\Delta w$.  The
+dissipation in a step is the support function of $\mathcal{E}$ in the
+direction of motion times the distance moved, so it is never negative.
+The last term is the damping of backward Euler.  It is positive, and
+it goes to zero with $\Delta t$, since $\mathbf{v}$ changes by
+$O(\Delta t)$ per step.
+
+\textbf{Fixed geometry.}  In step~2 the envelope belongs to one state
+and does not change as the pipe moves.  That holds for small motions
+only; from step~3 the geometry follows the motion.  In particular the
+envelope does not know that a lifted pipe has left the soil, so a lift
+is only described until the pipe comes down again.
+
+\textbf{Sliding block (check).}  For the rectangle $|H| \le H_0$,
+$0 \le V \le V_0$ with $V_0 > W$, a load $F_x = F_0\sin\omega t$ and no
+lift, the force stays at $V = W$ on the vertical edges, whose normals
+are horizontal.  The pipe then slides horizontally, and
+(\ref{eq:motion}) becomes Newmark's sliding block (Newmark 1965,
+\emph{G\'eotechnique} 15(2)):
+$M_x\ddot u = F_x(t) - H_0\operatorname{sign}\dot u$ while it slides.
+For $F_0 > H_0$ the block starts from rest at
+$\omega t_1 = \arcsin(H_0/F_0)$, where the load reaches $H_0$.  With
+$\tau = t - t_1$,
+\begin{align}
+  M_x\dot u &= \frac{F_0}{\omega}(\cos\omega t_1 - \cos\omega t)
+    - H_0\tau, \\
+  M_x u &= \frac{F_0}{\omega}\Bigl(\tau\cos\omega t_1
+    - \frac{\sin\omega t - \sin\omega t_1}{\omega}\Bigr)
+    - \tfrac12 H_0\tau^2,
+\end{align}
+until it stops at the first root $t_2 > t_1$ of $\dot u = 0$ (one
+equation, solved by bisection).  For $F_0/H_0 \le 1.862$ it stops
+before the load passes $-H_0$ at $\omega t = \pi + \omega t_1$.  It
+then rests, and the next half period is the mirror image: the block
+moves $\Delta u = u(t_2)$ forward and the same back in each period.
+For larger $F_0/H_0$ it turns without rest, and the formula holds for
+the first half period only.
 
 % ====================================================================
 \section{Plotting}
