@@ -584,26 +584,35 @@ class PipeLateral:
     # Steps
     # ------------------------------------------------------------------
 
-    def advance(self, state: LateralState, du: float) -> LateralState:
-        """Move the pipe du sideways along the state's mechanism and update
-        the soil surface."""
-        m = state.mech
-        vf = self.field(state, m.beta, m.omega, m.phi_switch)
-        ds = du / np.cos(m.beta)
-        u, w = state.u + du, state.w + du * np.tan(m.beta)
-
-        xs, vx, up = vf.surface_velocity()
-        flux = up + vx * np.tan(state.alpha)
-        order = np.argsort(xs)
-        inc = ds * np.interp(
-            self.x - state.u, xs[order], flux[order], left=0.0, right=0.0
-        )
-        if self.x[-1] - state.u <= xs.max():
-            raise ValueError("Plastic zone reaches x_max; increase x_max.")
+    def move(self, state: LateralState, du: float, dw: float, flow) -> LateralState:
+        """Move the pipe du sideways and dw down from state and update the
+        soil surface.  flow lists the mechanisms the soil moves with, as
+        (field, ds): the velocity field of a mechanism (field()) and the
+        pipe's path length along its direction.  At a corner of the yield
+        envelope the motion is a mix of two mechanisms; an empty flow moves
+        no soil (the pipe moves away from it, or has no contact).  The
+        free surface in front rises by Σ ds·(v_up + v_x·tan α), the soil
+        the pipe moves into is removed, and the rise is scaled so that the
+        soil volume is conserved.  α is refitted over the passive wedge of
+        the mechanism with the longest path (kept if there is none)."""
+        u, w = state.u + du, state.w + dw
+        inc = np.zeros_like(self.x)
+        wedge, longest = None, 0.0
+        for vf, ds in flow:
+            xs, vx, up = vf.surface_velocity()
+            flux = up + vx * np.tan(state.alpha)
+            order = np.argsort(xs)
+            inc += ds * np.interp(
+                self.x - state.u, xs[order], flux[order], left=0.0, right=0.0
+            )
+            if self.x[-1] - state.u <= xs.max():
+                raise ValueError("Plastic zone reaches x_max; increase x_max.")
+            if ds > longest:
+                wedge, longest = vf.solver.L, ds
         cap = -self.bottom(self.x, u, w)
         base = np.trapezoid(state.eta, self.x)
         scale = 1.0
-        for _ in range(30):
+        for _ in range(30 if flow else 0):
             err = np.trapezoid(np.minimum(state.eta + scale * inc, cap), self.x) - base
             if abs(err) < 1e-14:
                 break
@@ -614,8 +623,15 @@ class PipeLateral:
         x_right = self._contact_end(heaved, u, w, +1)
         eta = np.minimum(heaved, cap)
         cut = state.cut | (heaved > cap)
-        alpha = self._slope(eta, x_right, vf.solver.L)
+        alpha = state.alpha if wedge is None else self._slope(eta, x_right, wedge)
         return LateralState(u, w, eta, x_left, x_right, cut, scale=scale, alpha=alpha)
+
+    def advance(self, state: LateralState, du: float) -> LateralState:
+        """Move the pipe du sideways along the state's mechanism and update
+        the soil surface (move() with that one mechanism)."""
+        m = state.mech
+        vf = self.field(state, m.beta, m.omega, m.phi_switch)
+        return self.move(state, du, du * np.tan(m.beta), [(vf, du / np.cos(m.beta))])
 
     def run(
         self, state: LateralState, distance: float, du: float | None = None

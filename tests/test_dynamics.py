@@ -260,6 +260,18 @@ def test_run_ends_at_t_end():
     assert np.allclose([s.t for s in dyn.run(1.0, 0.25)], [0.0, 0.25, 0.5, 0.75, 1.0])
 
 
+def test_no_contact_free_fall():
+    """env = None (no contact): the soil carries nothing, and the pipe
+    falls freely, ẇ = W·t/M_z (exact in velocity)."""
+    M = pipe_mass(W, 1.0)
+    dyn = PipeDynamics(None, W=W, M=M)
+    s0 = dyn.rest()
+    assert s0.H == 0.0 and s0.V == 0.0
+    for s in dyn.run(0.5, 0.01)[1:]:
+        assert s.H == 0.0 and s.V == 0.0 and s.u == 0.0
+        assert abs(s.w_dot - W / (M[1] / 1000.0) * s.t) < 1e-12
+
+
 def test_rejects_bad_mass_and_step():
     """Masses and time steps must be positive."""
     with pytest.raises(ValueError):

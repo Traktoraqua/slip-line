@@ -87,7 +87,8 @@ class PipeDynamics:
     """Rigid pipe with mass on rigid-plastic soil whose yield envelope env
     is fixed, loaded by its submerged weight W, the horizontal load Fx(t)
     and the lift F_L(t) (kN/m; functions of time, zero if not given).
-    M = (M_x, M_z) in kg/m, e.g. pipe_mass(W, D)."""
+    M = (M_x, M_z) in kg/m, e.g. pipe_mass(W, D).  env = None means no
+    contact: the soil carries nothing."""
 
     def __init__(self, env: YieldEnvelope, W: float, M, Fx=None, F_L=None):
         self.env = env
@@ -106,8 +107,15 @@ class PipeDynamics:
     def rest(self, t: float = 0.0) -> DynamicState:
         """The pipe at rest at u = w = 0, with the soil force closest to the
         load at t."""
-        H, V = closest_point(self.env, self.load(t), self.M)
+        H, V = self.soil_force(self.load(t))
         return DynamicState(t, 0.0, 0.0, 0.0, 0.0, H, V)
+
+    def soil_force(self, F_star) -> np.ndarray:
+        """The point of the envelope closest to F_star (metric M⁻¹); zero
+        without contact."""
+        if self.env is None:
+            return np.zeros(2)
+        return closest_point(self.env, F_star, self.M)
 
     def step(self, s: DynamicState, dt: float) -> DynamicState:
         """One backward Euler step of dt from s: the soil force is the point
@@ -118,7 +126,7 @@ class PipeDynamics:
         t = s.t + dt
         v = np.array([s.u_dot, s.w_dot])
         F_star = self.load(t) + self._Mt * v / dt
-        F = closest_point(self.env, F_star, self.M)
+        F = self.soil_force(F_star)
         v = dt * (F_star - F) / self._Mt
         return DynamicState(t, s.u + dt * v[0], s.w + dt * v[1], v[0], v[1], F[0], F[1])
 
@@ -126,15 +134,9 @@ class PipeDynamics:
         """States from start (default: at rest at t = 0) to t_end, in steps
         of dt at the times start.t + k·dt (without round-off drift).  The
         last step is shorter if t_end is not a multiple of dt."""
-        if dt <= 0.0:
-            raise ValueError("The time step must be positive.")
         s = start if start is not None else self.rest()
-        n = int(np.floor((t_end - s.t) / dt + 1e-9))
-        times = [s.t + k * dt for k in range(1, n + 1)]
-        if t_end - (times[-1] if times else s.t) > 1e-9 * dt:
-            times.append(t_end)
         states = [s]
-        for t in times:
+        for t in _times(s.t, t_end, dt):
             states.append(self.step(states[-1], t - states[-1].t))
         return states
 
@@ -159,3 +161,141 @@ class PipeDynamics:
             "kinetic": kinetic,
             "numerical": numerical,
         }
+
+
+def _times(t0: float, t_end: float, dt: float) -> list[float]:
+    """The times t0 + k·dt up to t_end (without round-off drift), and t_end
+    itself if it is not one of them."""
+    if dt <= 0.0:
+        raise ValueError("The time step must be positive.")
+    n = int(np.floor((t_end - t0) / dt + 1e-9))
+    times = [t0 + k * dt for k in range(1, n + 1)]
+    if t_end - (times[-1] if times else t0) > 1e-9 * dt:
+        times.append(t_end)
+    return times
+
+
+class _Backward(Exception):
+    """The motion needs a mechanism of the mirror image (step 4)."""
+
+
+class PipeMotion:
+    """The pipe with mass, loaded in time, while the geometry follows the
+    motion forward (step 3 of PLAN_DYNAMIKK.md; manual.tex, "Geometry that
+    follows the motion").
+
+    lat and geo are a PipeLateral model with uniform friction (e.g.
+    PipeLateralClosedForm) and its state, e.g. from after_penetration.  The
+    time steps are those of PipeDynamics on the envelope of the current
+    geometry (YieldEnvelope.from_state with n directions).  When the pipe
+    has moved the path length ds, the geometry is updated with
+    PipeLateral.move, the soil flowing with the mechanisms of the envelope
+    edges the velocity has followed (two at a corner), and a new envelope
+    is made.  Without contact the soil force is zero, and the geometry is
+    updated as soon as the pipe touches the soil again.  The run stops
+    (stop_reason = "backward") before a step whose motion needs a
+    mechanism of the mirror image, which comes in step 4.
+
+    run() returns DynamicStates with u and w from the start; geometries
+    lists (t, LateralState, envelope or None) at the start and at every
+    update."""
+
+    def __init__(self, lat, geo, M, Fx=None, F_L=None, ds=0.25e-3, n=720):
+        if not lat.uniform:
+            raise ValueError("PipeMotion needs uniform friction (uniform=True).")
+        self.lat, self.geo0, self.ds, self.n = lat, geo, ds, n
+        self.dyn = PipeDynamics(None, lat.W, M, Fx, F_L)
+        self.geometries = []
+        self.stop_reason = None
+
+    def envelope(self, geo) -> YieldEnvelope | None:
+        """Envelope of a geometry; None if the pipe touches no soil."""
+        if geo.x_right - geo.x_left <= 1e-12:
+            return None
+        return YieldEnvelope.from_state(self.lat, geo, self.n)
+
+    def run(self, t_end: float, dt: float) -> list[DynamicState]:
+        """Time steps of dt from rest at t = 0 to t_end (shorter last step),
+        or until the run stops."""
+        dyn, geo = self.dyn, self.geo0
+        dyn.env = self.envelope(geo)
+        states = [dyn.rest()]
+        self.geometries = [(0.0, geo, dyn.env)]
+        self.stop_reason = None
+        paths, path = {}, 0.0  # path along each sampled mechanism, and in all
+        for t in _times(0.0, t_end, dt):
+            prev = states[-1]
+            s = dyn.step(prev, t - prev.t)
+            v = np.array([s.u_dot, s.w_dot])
+            if v.any():
+                try:
+                    split = self._split(dyn.env, s, v)
+                except _Backward:
+                    self.stop_reason = "backward"
+                    break
+                for j, a in split:
+                    paths[j] = paths.get(j, 0.0) + a * (s.t - prev.t)
+                path += float(np.hypot(*v)) * (s.t - prev.t)
+            states.append(s)
+            landed = dyn.env is None and self._touches(geo, s)
+            if path >= self.ds or landed:
+                geo = self._update(geo, states[-1], paths)
+                paths, path = {}, 0.0
+        if path > 0.0:
+            self._update(geo, states[-1], paths)
+        return states
+
+    def _split(self, env, s: DynamicState, v: np.ndarray) -> list[tuple[int, float]]:
+        """The velocity v at the soil force of s as speeds a_k ≥ 0 along the
+        directions of motion there: one edge, or the two edges of a corner.
+        Returns (index of the sampled direction, a_k) for the edges whose
+        mechanism moves soil; raises _Backward if one of them is a
+        mechanism of the mirror image."""
+        if env is None:
+            return []
+        F = np.array([s.H, s.V])
+        lo, hi = env.directions(F, tol=1e-7)
+        if hi - lo < 1e-9:
+            dirs, speeds = [lo], [float(np.hypot(*v))]
+        else:
+            A = np.array([[np.cos(lo), np.cos(hi)], [np.sin(lo), np.sin(hi)]])
+            dirs, speeds = [lo, hi], np.linalg.solve(A, v)
+        out = []
+        for d, a in zip(dirs, speeds):
+            j = self._sample(env, d, F)
+            if a <= 0.0 or env.D[j] <= 0.0:
+                continue  # no motion along it, or no soil (lift-off)
+            if j >= len(env.deltas) // 2:
+                raise _Backward
+            out.append((j, float(a)))
+        return out
+
+    @staticmethod
+    def _sample(env, d: float, F) -> int:
+        """Index of the sampled direction whose half-plane forms the edge
+        with normal d through F (forward first, if both halves give it)."""
+        diff = np.abs((env.deltas - d + np.pi) % (2.0 * np.pi) - np.pi)
+        near = np.nonzero((diff < 1e-4) & np.isfinite(env.D))[0]
+        if len(near) == 0:
+            raise ValueError("No sampled direction for an edge of the envelope.")
+        work = np.cos(d) * F[0] + np.sin(d) * F[1]
+        return int(near[np.argmin(np.abs(env.D[near] - work))])
+
+    def _touches(self, geo, s: DynamicState) -> bool:
+        """Whether the pipe at s reaches below the soil surface anywhere."""
+        u, w = self.geo0.u + s.u, self.geo0.w + s.w
+        return bool(np.any(self.lat.bottom(self.lat.x, u, w) + geo.eta >= 0.0))
+
+    def _update(self, geo, s: DynamicState, paths: dict):
+        """Move the geometry to the pipe at s, the soil flowing with the
+        mechanisms and paths since the last update, and make its envelope."""
+        lat, env = self.lat, self.dyn.env
+        flow = [
+            (lat.field(geo, float(env.deltas[j]), lat.omega_r), p)
+            for j, p in sorted(paths.items())
+        ]
+        du, dw = self.geo0.u + s.u - geo.u, self.geo0.w + s.w - geo.w
+        geo = lat.move(geo, du, dw, flow)
+        self.dyn.env = self.envelope(geo)
+        self.geometries.append((s.t, geo, self.dyn.env))
+        return geo
