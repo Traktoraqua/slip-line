@@ -58,14 +58,14 @@ Dokumentasjonen kommer først og er en del av steget, ikke noe som gjøres til s
 - **m_a,x, m_a,z:** tilleggsmasse fra vannet, horisontalt og vertikalt.
 - **M:** massen i bevegelseslikningen, M = diag(m + m_a,x, m + m_a,z). Fra steg 6 kommer jordas masse i tillegg.
 - **J(δ):** ∫|v/v₀|² dA over den plastiske sonen. Jordas masse er ρ_sat·J.
-- **T, T_n:** bølgeperioden og egenperioden til røret på jorda, T_n = 2π·√(M/k), der k = dH/du.
+- **T, T_n:** bølgeperioden og egenperioden til røret på jorda, T_n = 2π·√(M/k), der k = dH/du langs skyvet ved V = W. T_n avhenger mye av cᵤ, se steg 3.
 
 ## Valg som er tatt
 
 - **Frihetsgrader og materialmodell.** To frihetsgrader (u, w). Røret er et stivt legeme, og jorda er stiv-plastisk: ingen elastisk fase og ingen demping utover det plastiske arbeidet.
 - **Jordmotstand.** Den kommer fra flyteflaten til den sideveis mekanismen (øvre grense), med normalitet: bevegelsen står vinkelrett på flyteflaten. Der flyteflaten har et hjørne, kan røret bevege seg i alle retninger mellom normalene på hver side.
-- **Q fra steg 1 brukes ikke.** Når røret har flyttet seg sideveis, åpnes kontakten bak røret. Ved V = W gir Q dessuten samme svar som flyteflaten uten Q.
-  - Svakhet: flyteflaten er for sterk når røret beveger seg bratt nedover. Ved start tåler den V = 3,27 kN/m ved H = 0, mot Q = 2,80 kN/m. Dette har bare betydning når røret lander etter å ha lettet.
+- **Q fra synkningen brukes ikke.** Når røret har flyttet seg sideveis, åpnes kontakten bak røret. Ved V = W gir Q dessuten samme svar som flyteflaten uten Q.
+  - Svakhet: flyteflaten er for sterk når røret beveger seg bratt nedover. Ved start tåler den V = 3,27 kN/m ved H = 0 med cᵤ = 5 kPa og 3,78 kN/m med cᵤ = 1 kPa, mot Q = W = 2,80 kN/m. Den er altså 17 % og 35 % for sterk. Dette har bare betydning når røret lander etter å ha lettet.
 - **Friksjonsmodell.** Lukket form med jevn friksjon (`PipeLateralClosedForm`) kommer først, fordi den er rask: én flyteflate med 722 retninger tar 11–14 ms (målt). Friksjon som snur kan komme senere.
 - **Tidsintegrasjon.** Implisitt steg med projeksjon på flyteflaten, som «closest point projection» i plastisitetsteori.
   - Prøvekraften er F* = F_ytre + M·v/Δt.
@@ -116,7 +116,8 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
   - Tidsserier med t, u, w, u̇, ẇ, H, V og δ.
 - **Kontroll (pytest).** Det krever `uv add --dev pytest`, som installeres lokalt i prosjektet og ikke globalt. `tests/test_yield_envelope.py` fra steg 1 er allerede skrevet for pytest. pytest må bare lete i `tests/`, siden `test_*.py` i rotmappa er skript.
   - Last innenfor flyteflaten: røret står stille.
-  - Glideblokk (Newmark): med en enkel flyteflate H ≤ μ·V og harmonisk Fx finnes forskyvningen per halvperiode på lukket form. Numerikken skal treffe innen 0,1 %.
+  - Glideblokk (Newmark): flyteflaten er et rektangel |H| ≤ H₀, 0 ≤ V ≤ V₀ med V₀ > W, og Fx er harmonisk med amplitude F₀ > H₀. Ved V = W er kanten loddrett, så røret glir vannrett, og projeksjonen gir (m + m_a,x)·ü = Fx − H₀. Tidspunktet røret stopper finnes av én likning (rotfinning), og forskyvningen per halvperiode er da en formel. Numerikken skal treffe innen 0,1 %.
+    - Ikke H ≤ μ·V: med normalitet beveger røret seg da vinkelrett på kanten, altså oppover i vinkelen atan μ. Kanten går gjennom origo, så D = 0. Det er ingen glideblokk, og ingenting dissiperes.
   - Løft større enn W: røret letter uten jordkraft.
   - Energibalanse: arbeidet fra lastene er lik dissipasjonen pluss den kinetiske energien, innen feilen fra Δt.
   - Konvergens med Δt.
@@ -135,8 +136,9 @@ Dette dekker også punkt 3.3 i `VIDERE_ARBEID.md`.
 - **Kontroll:**
   - Langsom last (T ≫ T_n) gir samme forløp som den kvasistatiske kraftstyrte kjøringen. Bruk samme lastform som Fx = 0,3·(1 − cos πt), strukket til f.eks. 100 s.
     - Fra steg 1: den gamle kjøringen følger et lokalt minimum, og den lar ikke røret gå bakover. Sammenlign derfor med `push_force` på hele flyteflaten, og bruk cᵤ = 1 kPa, der den gamle kjøringen er riktig til ~190 mm.
-  - Røret mister kontakten bak seg når det løfter seg (fra ~8 mm med cᵤ = 5 kPa). Glipa er brøkdeler av en millimeter. Δs må være så liten at røret lander i glipa i stedet for å synke gjennom den, eller flyteflaten må lages på nytt når kontakten bak endres.
-  - Den samme lasten over 1 s viser hvor mye dynamikken betyr, siden T_n ≈ 1 s.
+    - Bare den stigende halvdelen kan sammenlignes. Røret trenger en holdekraft nesten like stor som skyvet: med cᵤ = 1 kPa er H_min = 0,35 mot H_max = 0,43 kN/m ved 5 mm, og 0,48 mot 0,60 kN/m ved 25 mm. Når lasten faller fra toppen på 0,6 kN/m, går røret bakover og ned mot glipa bak seg (δ = 152° ved 20 mm) allerede ved Fx ≈ 0,47 kN/m. Da er u̇ < 0, og det krever den speilede rammen fra steg 4. Kjøringene i steg 3 stopper derfor når u̇ ville blitt negativ.
+  - Røret mister kontakten bak seg når det løfter seg (fra ~8 mm med cᵤ = 5 kPa). Glipa er brøkdeler av en millimeter. Δs må være så liten at røret lander i glipa i stedet for å synke gjennom den, eller flyteflaten må lages på nytt når kontakten bak endres. Med cᵤ = 1 kPa går røret mot glipa bak seg når lasten faller (se over), og den landingen hører til steg 4.
+  - Den stigende halvdelen på 1 s (lasten uten strekk) viser hvor mye dynamikken betyr. Med M = 1900 kg/m og k fra `push_force` langs skyvet er T_n ≈ 2,0–3,2 s for cᵤ = 1 kPa (k ≈ 7,5–20 kN/m² de første 25 mm) og 0,7–1,7 s for cᵤ = 5 kPa (k ≈ 27–136 kN/m² de første 4 mm). k er størst den første millimeteren.
   - Volumet bevares som i dag.
   - Energibalanse, og konvergens med Δt og Δs.
 - **Dokumentasjon:**
@@ -152,6 +154,7 @@ Dette dekker også punkt 3.5 i `VIDERE_ARBEID.md`.
 - **Kontroll:**
   - Symmetrisk last gir speilet svar.
   - Langsom last gir dagens skyv fram og tilbake (steg 3 i `run_lateral_closed_form.py`).
+  - Når lasten faller, lander røret i glipa bak seg i stedet for å synke gjennom den. Med cᵤ = 1 kPa skjer det allerede ved Fx ≈ 0,47 kN/m etter 20 mm (se steg 3).
   - Bermene bygges opp på begge sider.
 - **Dokumentasjon:**
   - Manualen: om vendinger, med figur av geometrien etter noen perioder.
@@ -217,8 +220,8 @@ Dette dekker også punkt 3.5 i `VIDERE_ARBEID.md`.
 
 | Når | Hva | Forslag hvis ikke gitt |
 |---|---|---|
-| Steg 2 | Rørmasse m og C_a (horisontalt og vertikalt) | 1090 kg/m fra W, og C_a = 1 |
-| Steg 2 | Ok å ta inn pytest (`uv add --dev pytest`) | ja |
+| Steg 2 | Rørmasse m og C_a (horisontalt og vertikalt) | 1090 kg/m fra W, og C_a = 1. Det er verdien i fritt vann. Nær bunnen gir DNV-RP-F105 rundt 2,3 for et rør som ligger på bunnen (ikke kontrollert her), og mindre når røret er delvis gravd ned. |
+| Steg 2 | Ok å ta inn pytest (`uv add --dev pytest`) | ja (avklart 13.11.2026) |
 | Steg 5 | Bølgelast: F₀, T, strøm og løft | T = 10 s, F₀ rundt største motstand |
 | Steg 6 | ρ_sat | 1600 kg/m³ |
 | Steg 7 | μ og hastigheten cᵤ er målt ved | μ = 0,1 |
