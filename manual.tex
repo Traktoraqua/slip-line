@@ -124,6 +124,9 @@ Four further modules build on the Tresca nets:
   \item[\texttt{envelope.py}] The $H$--$V$ yield envelope of the soil
         for one state of the push, the first step of a dynamic model
         (\texttt{YieldEnvelope}, Sect.~\ref{sec:dynamic}).
+  \item[\texttt{dynamics.py}] The pipe with its mass on a fixed yield
+        envelope, loaded in time (\texttt{PipeDynamics},
+        Sect.~\ref{sec:motion}).
 \end{description}
 
 \subsection{Sign conventions and coordinate system}
@@ -275,11 +278,15 @@ Scripts in the project root import the package directly
 (\texttt{from slip\_line.solver import ...}).  The \texttt{test\_*.py}
 and \texttt{plot\_*.py} files there are standalone scripts that print
 tables or save figures in \texttt{plots/}; they are not a pytest
-suite.  The checks in \texttt{tests/} are written as pytest tests, and
-each file also runs as a script that prints \texttt{ok} per test:
+suite.  The checks are in \texttt{tests/}, as pytest tests (pytest is a
+development dependency, and \texttt{pyproject.toml} limits it to
+\texttt{tests/}).  Each file also runs as a script that prints
+\texttt{ok} per test:
 
 \begin{lstlisting}[language=bash,numbers=none]
+uv run pytest                      # all checks, about 1 s
 uv run tests/test_yield_envelope.py
+uv run tests/test_dynamics.py
 \end{lstlisting}
 
 % ====================================================================
@@ -1521,6 +1528,137 @@ moves $\Delta u = u(t_2)$ forward and the same back in each period.
 For larger $F_0/H_0$ it turns without rest, and the formula holds for
 the first half period only.
 
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{projection.png}
+\caption{(a) The closest-point projection on a schematic envelope with
+$M_x = M_z$, so that the distance is Euclidean: the trial force
+$\mathbf{F}^*$ (open), the soil force $\mathbf{F}$ (filled) and the
+direction of motion $\mathbf{F}^* - \mathbf{F}$, at rest inside, on an
+edge, at a corner and at lift-off.  (b) \texttt{PipeDynamics} on the
+rectangle $|H| \le H_0$ against Newmark's closed form,
+$F_0 = 1.5\,H_0$, $\Delta t = T/2000$ (\texttt{plot\_projection.py}).}
+\label{fig:projection}
+\end{figure}
+
+\textbf{Checks} (\texttt{tests/test\_dynamics.py}, 0.2\,s):
+\begin{itemize}
+  \item \texttt{pipe\_mass}: $m = W/g + \rho_w\pi D^2/4
+    = 285 + 805 = 1090$\,kg/m for $W = 2.8$\,kN/m, $D = 1$\,m and sea
+    water, plus $C_a \cdot 805$\,kg/m of added mass;
+  \item the closest point clamps each coordinate on a box, whatever
+    the masses, and satisfies normality on a triangle with
+    $M_z = 4M_x$ and on the pipe envelope;
+  \item a load inside the envelope ($|F_x| = 0.1 < 0.155$\,kN/m at
+    $V = W$) moves nothing, and the soil carries it;
+  \item the sliding block with $F_0 = 1.5\,H_0$: $\Delta u$ within
+    0.1\,\% of the closed form ($1.5\cdot10^{-6}$ in
+    Fig.~\ref{fig:projection}b), rest in between, and the same back;
+    halving $\Delta t$ halves the error of $u$ in the middle of a
+    slide (first order);
+  \item a lift $F_L = 2W$: no soil force, and
+    $\dot w = -(F_L - W)\,t/M_z$;
+  \item the energy balance (\ref{eq:energy}) to round-off, with the
+    numerical damping halving with $\Delta t$.
+\end{itemize}
+
+\subsection{API: motion on a fixed envelope}
+
+The pipe of Sect.~\ref{sec:envelope_results} ($c_u = 5$\,kPa) at the
+start of the push, with $C_a = 1$, under a horizontal load of amplitude
+0.2\,kN/m and period 10\,s:
+\begin{lstlisting}
+import numpy as np
+
+from slip_line.dynamics import PipeDynamics, pipe_mass
+from slip_line.envelope import YieldEnvelope
+from slip_line.lateral import PipeLateralClosedForm
+from slip_line.penetration import PipePenetrationClosedForm
+
+W, D, T = 2.8, 1.0, 10.0
+sim = PipePenetrationClosedForm(D=D, cu=5.0, r=0.8, W=W)
+s1 = sim.run()[-1]
+lat, start = PipeLateralClosedForm.after_penetration(sim, s1)
+env = YieldEnvelope.from_state(lat, start)
+
+
+def Fx(t):
+    return 0.2 * np.sin(2 * np.pi * t / T)
+
+
+M = pipe_mass(W, D)  # C_a = 1
+dyn = PipeDynamics(env, W, M, Fx=Fx)
+states = dyn.run(T, 0.005)
+print(f"M = {M[0]:.0f} kg/m, {len(states) - 1} steps")
+print(" t [s]  u [mm]  w [mm]  H [kN/m]  delta")
+for s in states[100::200]:  # t = 0.5, 1.5, ... s
+    u, w = 1e3 * s.u, 1e3 * s.w
+    d = np.degrees(s.delta)
+    print(f"{s.t:6.1f} {u:7.2f} {w:7.2f} {s.H:9.3f} {d:6.1f}")
+s = states[-1]
+print(f"end: u = {1e3 * s.u:.2f} mm, w = {1e3 * s.w:.2f} mm")
+for k, v in dyn.energy(states).items():
+    print(f"{k:12s} {1e3 * v:8.3f} J/m")
+\end{lstlisting}
+
+Expected output:
+\begin{lstlisting}[numbers=none]
+M = 1895 kg/m, 2000 steps
+ t [s]  u [mm]  w [mm]  H [kN/m]  delta
+   0.5    0.00    0.00     0.062    nan
+   1.5    0.01    0.00     0.156   17.0
+   2.5    6.44    1.97     0.159   17.0
+   3.5   31.46    9.62     0.156   17.0
+   4.5   57.07   17.45     0.147   17.0
+   5.5   58.51   17.89    -0.062    nan
+   6.5   58.50   17.89    -0.156  163.0
+   7.5   52.24   19.80    -0.159  163.0
+   8.5   27.66   27.32    -0.156  163.0
+   9.5    2.77   34.93    -0.148  163.0
+end: u = 1.54 mm, w = 35.30 mm
+work          116.796 J/m
+dissipation   116.779 J/m
+kinetic         0.000 J/m
+numerical       0.018 J/m
+\end{lstlisting}
+
+The pipe rests until the load reaches the push force, 0.155\,kN/m, and
+then slides forward and down along the edge at $\delta = 17^\circ$.
+The soil force moves a little along the edge as the pipe speeds up and
+slows down, so $H$ is not exactly 0.155.  Half a period later it slides
+back along the mirror edge ($\delta = 163^\circ$).  After one period it
+is nearly back at $u = 0$, but 35\,mm deeper.  On a fixed envelope this
+is far beyond what the envelope is valid for: after only 4\,mm of push
+the push force is 0.398\,kN/m (Sect.~\ref{sec:envelope_results}).  The
+geometry must follow the motion, which is step~3 of the plan.  The
+numerical damping is 0.018 of 116.8\,J/m.
+
+Functions and classes (forces in kN/m, masses in kg/m, energies in
+kJ/m; $H$ toward $+x$ and $V$ down, from the pipe on the soil):
+\begin{itemize}
+  \item \texttt{pipe\_mass(W, D, C\_a=1.0, rho\_w=1025.0, g=9.81)}:
+    $(M_x, M_z)$, the pipe $m = W/g + \rho_w\pi D^2/4$ plus the added
+    mass $C_a\rho_w\pi D^2/4$; \texttt{C\_a} is one value or
+    $(C_{a,x}, C_{a,z})$;
+  \item \texttt{closest\_point(env, F, M)}: the point of the envelope
+    closest to $\mathbf{F}$ in the metric of $\mathbf{M}^{-1}$
+    (\ref{eq:projection});
+  \item \texttt{PipeDynamics(env, W, M, Fx=None, F\_L=None)}: the pipe
+    on the fixed envelope \texttt{env}; \texttt{Fx} and \texttt{F\_L}
+    are functions of $t$ (zero if not given).  Methods:
+    \texttt{load(t)} gives $\mathbf{F}_\text{ext}$; \texttt{rest(t=0)}
+    the pipe at rest with the soil force closest to the load;
+    \texttt{step(state, dt)} one step of (\ref{eq:euler});
+    \texttt{run(t\_end, dt, start=None)} the list of states from
+    \texttt{start} (by default \texttt{rest()}); \texttt{energy(states)}
+    the terms of (\ref{eq:energy}) as a dict with \texttt{work},
+    \texttt{dissipation}, \texttt{kinetic} and \texttt{numerical};
+  \item \texttt{DynamicState}: \texttt{t}, \texttt{u}, \texttt{w},
+    \texttt{u\_dot}, \texttt{w\_dot}, \texttt{H}, \texttt{V}, and
+    \texttt{delta}, the direction of motion below the horizontal
+    (\texttt{nan} at rest).
+\end{itemize}
+
 % ====================================================================
 \section{Plotting}
 \label{sec:plot}
@@ -1891,6 +2029,7 @@ File & Contents \\
 \texttt{slip\_line/penetration.py}      & \texttt{PipePenetration}: pipe sinking under its weight \\
 \texttt{slip\_line/lateral.py}          & \texttt{PipeLateral}: lateral push and push back \\
 \texttt{slip\_line/envelope.py}         & \texttt{YieldEnvelope}: H--V yield envelope \\
+\texttt{slip\_line/dynamics.py}         & \texttt{PipeDynamics}: motion on a fixed envelope \\
 \texttt{slip\_line/plot.py}             & Built-in figure helpers \\
 \midrule
 \texttt{main.py}                       & Interactive program (Tresca strip or disk) \\
@@ -1900,6 +2039,7 @@ File & Contents \\
 \texttt{run\_lateral.py}               & Pipe sinking, lateral push and push back \\
 \texttt{run\_lateral\_closed\_form.py}   & The same, closed forms (uniform friction) \\
 \texttt{plot\_yield\_envelope.py}       & Yield envelopes along the lateral push \\
+\texttt{plot\_projection.py}            & The time step and the sliding-block check \\
 \texttt{plot\_velocity\_strip.py}       & Velocity field figure — smooth strip \\
 \texttt{plot\_velocity\_disk.py}        & Velocity field figure — disk \\
 \texttt{plot\_mc\_gravity.py}           & Demo script — gravity parametric study \\
