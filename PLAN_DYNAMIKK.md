@@ -9,7 +9,7 @@ Status 13.11.2026. Planen innfører én ting av gangen. Hvert steg er ferdig fø
 | 0 | Plan, notasjon og valg | ferdig |
 | 1 | Flyteflaten (H–V) for én tilstand | ferdig |
 | 2 | Bevegelseslikningen på fast flyteflate | ferdig |
-| 3 | Geometrien følger bevegelsen (forover) | ferdig, venter på godkjenning |
+| 3 | Geometrien følger bevegelsen (forover) | ferdig |
 | 4 | Fram og tilbake | ikke startet |
 | 5 | Harmonisk bølgelast og løft | ikke startet |
 | 6 | Jordas treghet | ikke startet |
