@@ -183,6 +183,30 @@ def test_lift_off():
         assert abs(np.degrees(s.delta) + 90.0) < 1e-9
 
 
+def test_unequal_masses_normality():
+    """C_a = 1 horizontally and 2.3 vertically: at every step where the
+    pipe moves, its velocity is a direction of motion at the soil force
+    (normality), which needs the metric M⁻¹ in both the projection and
+    the velocity update."""
+    T = 2.0
+    env = pipe_envelope()
+    dyn = PipeDynamics(
+        env,
+        W=W,
+        M=pipe_mass(W, 1.0, C_a=(1.0, 2.3)),
+        Fx=lambda t: 0.3 * np.sin(2 * np.pi * t / T),
+    )
+    n_moving = 0
+    for s in dyn.run(T, T / 1000)[1:]:
+        if np.isnan(s.delta):
+            continue
+        n_moving += 1
+        lo, hi = env.directions([s.H, s.V], tol=1e-7)
+        d = lo + (s.delta - lo + np.pi) % (2.0 * np.pi) - np.pi
+        assert lo - 1e-6 <= d <= hi + 1e-6, np.degrees([s.t, lo, d, hi])
+    assert n_moving > 100
+
+
 def test_energy_balance():
     """Work of the loads = dissipation + kinetic energy + numerical
     damping, exactly; the numerical damping halves with Δt."""
